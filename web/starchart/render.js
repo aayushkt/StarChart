@@ -139,6 +139,10 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   const page = config.page, layout = config.layout, ty = theme.type, pg = theme.page;
 
   const bodyStates = observer && config.bodies?.enabled ? states(observer) : null;
+  // Anything the reader has dragged wins over the computed arrangement. The
+  // defaults stay derived, so the layout sliders keep working until something
+  // is moved.
+  const placed = config.placement ?? {};
 
   const defs = [`<style>${stylesheet(theme, ui)}</style>`];
   const body = [];
@@ -152,8 +156,10 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
     svg.rect(gap, gap, page.width - 2 * gap, page.height - 2 * gap, { class_: "frame-inner" }) +
     `</g>`);
 
-  body.push(`<g id="layer-title">` +
-    svg.text(page.width / 2, page.margin + 34, config.title, { class_: "title" }) + `</g>`);
+  const titleAt = placed.texts?.title ?? {};
+  body.push(`<g id="layer-title" data-drag="text:title">` +
+    svg.text(titleAt.x ?? page.width / 2, titleAt.y ?? page.margin + 34, config.title,
+      { class_: "title" }) + `</g>`);
 
   let [north, south] = stackedPair({
     width: page.width,
@@ -164,11 +170,9 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
     raZeroDeg: layout.ra_zero_deg,
   });
 
-  // Anything the reader has dragged wins over the computed arrangement. The
-  // default stays derived so the sliders keep working until something is moved.
-  const placed = config.placement ?? {};
   const reposition = (hemi, at) => at
-    ? new Hemisphere({ ...hemi, cx: at.cx ?? hemi.cx, cy: at.cy ?? hemi.cy })
+    ? new Hemisphere({ ...hemi, cx: at.cx ?? hemi.cx, cy: at.cy ?? hemi.cy,
+                       radius: at.radius ?? hemi.radius })
     : hemi;
   north = reposition(north, placed.plates?.north);
   south = reposition(south, placed.plates?.south);
@@ -266,11 +270,25 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   }
 
   if (observer) {
-    body.push(`<g id="layer-caption">` +
-      svg.text(page.width / 2, page.height - page.margin - 3, caption(observer),
-        { class_: "caption" }) + `</g>`);
+    const capAt = placed.texts?.caption ?? {};
+    body.push(`<g id="layer-caption" data-drag="text:caption">` +
+      svg.text(capAt.x ?? page.width / 2, capAt.y ?? page.height - page.margin - 3,
+        caption(observer), { class_: "caption" }) + `</g>`);
+  }
+
+  const textBoxes = [
+    { name: "title", x: titleAt.x ?? page.width / 2, y: titleAt.y ?? page.margin + 34,
+      size: ty.title_size, label: "TITLE" },
+  ];
+  if (observer) {
+    const capAt = placed.texts?.caption ?? {};
+    textBoxes.push({
+      name: "caption", x: capAt.x ?? page.width / 2,
+      y: capAt.y ?? page.height - page.margin - 3,
+      size: theme.horizon.caption_size, label: "CAPTION",
+    });
   }
 
   return { markup: svg.document_(page.width, page.height, defs.join(""), body.join("")),
-           hemispheres: [north, south], panelBoxes, bodyStates };
+           hemispheres: [north, south], panelBoxes, textBoxes, bodyStates };
 }

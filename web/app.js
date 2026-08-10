@@ -34,6 +34,8 @@ const state = {
   baseConfig: null,
   hemispheres: [],
   panelBoxes: [],
+  textBoxes: [],
+  selection: null,
 };
 
 const round = (v, p) => Number(v.toFixed(p));
@@ -72,6 +74,7 @@ function rerender() {
   const markup = built.markup;
   state.hemispheres = built.hemispheres;
   state.panelBoxes = built.panelBoxes;
+  state.textBoxes = built.textBoxes;
   const wrap = document.getElementById("chart-wrap");
   wrap.innerHTML = markup;
   state.svg = wrap.querySelector("svg");
@@ -411,12 +414,158 @@ function panelRows() {
     });
 }
 
+/* ---------- per-selection controls ----------
+ *
+ * With forty-odd controls on the sheet, showing all of them at once buries the
+ * three that apply to the thing you just grabbed. Selecting an object narrows
+ * the panel to that object; deselecting brings the global controls back.
+ */
+
+const PLATE_COLOURS = [
+  ["plate.fill", "Plate"],
+  ["plate.rim", "Inner rim"],
+  ["plate.scale_fill", "Scale band"],
+  ["plate.scale_text", "Scale numbers"],
+  ["stars.fill", "Stars"],
+  ["milkyway.fill", "Milky Way"],
+  ["grid.stroke", "Graticule"],
+  ["reference.stroke", "Tropics"],
+  ["reference.ecliptic_stroke", "Ecliptic"],
+  ["type.star_fill", "Star names"],
+  ["type.constel_fill", "Constellation names"],
+  ["horizon.stroke", "Horizon"],
+];
+
+function selectionPanel(sel) {
+  if (sel.kind === "plate") {
+    const at = `config.placement.plates.${sel.name}`;
+    return [{
+      title: sel.name === "north" ? "Northern plate" : "Southern plate",
+      open: true,
+      folders: [
+        { title: "Position & size", sliders: [
+          { path: `${at}.cx`, label: "Across the sheet", min: 0, max: 1200, step: 1, unit: "mm" },
+          { path: `${at}.cy`, label: "Down the sheet", min: 0, max: 1600, step: 1, unit: "mm" },
+          // Radius stays shared between the plates, as on the original. Per-plate
+          // placement covers position only, so selecting one does not quietly
+          // detach it from the layout sliders.
+          { path: "config.layout.radius", label: "Radius (both)", min: 40, max: 300, step: 1, unit: "mm" },
+        ] },
+        { title: "Both plates", sliders: [
+          { path: "config.layout.overlap_deg", label: "Reach past the equator", min: 0, max: 40, step: 0.5, unit: "°" },
+          { path: "config.layout.ra_zero_deg", label: "Rotation", min: 0, max: 360, step: 1, unit: "°" },
+          { path: "config.layout.hemi_label_deg", label: "Hemisphere label angle", min: -180, max: 180, step: 1, unit: "°" },
+        ] },
+        { title: "Features", layers: [
+          "layer-plate", "layer-milkyway", "layer-grid", "layer-stars", "layer-star-halos",
+          "layer-tropics", "layer-ecliptic", "layer-colures",
+          "layer-constellation-labels", "layer-star-labels",
+          "layer-rim", "layer-hemi-labels", "layer-sun", "layer-moon",
+          "layer-moon-track", "layer-horizon",
+        ] },
+        { title: "Colours", colors: PLATE_COLOURS },
+      ],
+    }];
+  }
+
+  if (sel.kind === "panel") {
+    const at = `config.placement.panels.${sel.name}`;
+    return [{
+      title: PANEL_LABELS[sel.name] ?? sel.name,
+      open: true,
+      folders: [
+        { title: "Position & size", sliders: [
+          { path: `${at}.x`, label: "Across the sheet", min: 0, max: 1200, step: 1, unit: "mm" },
+          { path: `${at}.y`, label: "Down the sheet", min: 0, max: 1600, step: 1, unit: "mm" },
+          { path: `${at}.w`, label: "Width", min: 30, max: 600, step: 1, unit: "mm" },
+          { path: `${at}.h`, label: "Height", min: 20, max: 400, step: 1, unit: "mm" },
+        ] },
+        { title: "This diagram", diagram: sel.name },
+        { title: "All diagrams", sliders: [
+          { path: "panels.title_size", label: "Heading size", min: 1.5, max: 8, step: 0.1, unit: "mm" },
+          { path: "panels.caption_size", label: "Caption size", min: 1.2, max: 6, step: 0.1, unit: "mm" },
+          { path: "panels.line_width", label: "Line weight", min: 0.1, max: 1.5, step: 0.05, unit: "mm" },
+        ], colors: [
+          ["panels.ink", "Ink"],
+          ["panels.sun", "Sun"],
+          ["panels.earth", "Earth"],
+          ["panels.orbit", "Orbits"],
+        ] },
+      ],
+    }];
+  }
+
+  const at = `config.placement.texts.${sel.name}`;
+  const isTitle = sel.name === "title";
+  return [{
+    title: isTitle ? "Title" : "Caption",
+    open: true,
+    folders: [
+      { title: "Position", sliders: [
+        { path: `${at}.x`, label: "Across the sheet", min: 0, max: 1200, step: 1, unit: "mm" },
+        { path: `${at}.y`, label: "Down the sheet", min: 0, max: 1600, step: 1, unit: "mm" },
+      ] },
+      { title: "Type", sliders: isTitle ? [
+        { path: "type.title_size", label: "Size", min: 6, max: 60, step: 0.5, unit: "mm" },
+        { path: "type.title_tracking", label: "Tracking", min: 0, max: 18, step: 0.1, unit: "mm" },
+      ] : [
+        { path: "horizon.caption_size", label: "Size", min: 1.5, max: 12, step: 0.1, unit: "mm" },
+      ], colors: isTitle ? [["type.title_fill", "Colour"]]
+                         : [["horizon.caption_fill", "Colour"]] },
+      { title: "Show", layers: [isTitle ? "layer-title" : "layer-caption"] },
+    ],
+  }];
+}
+
+/** Placement entries are created on demand, so a slider has something to bind
+ *  to before the object has ever been dragged. */
+function ensurePlacement(sel) {
+  const p = state.config.placement ?? (state.config.placement = {});
+  if (sel.kind === "plate") {
+    const hemi = state.hemispheres.find((h) => h.pole === sel.name);
+    p.plates = p.plates ?? {};
+    p.plates[sel.name] = p.plates[sel.name] ?? { cx: hemi.cx, cy: hemi.cy };
+  } else if (sel.kind === "panel") {
+    const entry = state.panelBoxes.find((b) => b.name === sel.name);
+    p.panels = p.panels ?? {};
+    if (entry) p.panels[sel.name] = p.panels[sel.name] ?? { ...entry.box };
+  } else {
+    const entry = state.textBoxes.find((b) => b.name === sel.name);
+    p.texts = p.texts ?? {};
+    if (entry) p.texts[sel.name] = p.texts[sel.name] ?? { x: entry.x, y: entry.y };
+  }
+}
+
+function diagramRow(name) {
+  const wrap = el("label", "check");
+  const input = el("input");
+  input.type = "checkbox";
+  input.checked = !state.panelsOff.has(name);
+  input.addEventListener("change", () => {
+    if (input.checked) state.panelsOff.delete(name); else state.panelsOff.add(name);
+    rerender();
+  });
+  wrap.appendChild(input);
+  wrap.appendChild(el("span", "box"));
+  wrap.appendChild(el("span", null, "Show this diagram"));
+  return wrap;
+}
+
 function buildControls() {
   const host = document.getElementById("controls");
   host.textContent = "";
   const labels = LAYER_LABELS();
 
-  for (const group of PANEL) {
+  let groups = PANEL;
+  if (state.selection) {
+    ensurePlacement(state.selection);
+    groups = selectionPanel(state.selection);
+    const back = el("button", "btn back", "← All controls");
+    back.addEventListener("click", () => select(null));
+    host.appendChild(back);
+  }
+
+  for (const group of groups) {
     if (group.kind === "time" && !state.observer) continue;
     const sec = section(group.title, group.open ?? false);
 
@@ -444,6 +593,7 @@ function buildControls() {
         .filter((s) => s.path.startsWith("ui.") || hasPath(s.path))
         .forEach((s) => f.body.appendChild(sliderRow(s)));
       if (spec.panels) panelRows().forEach((row) => f.body.appendChild(row));
+      if (spec.diagram) f.body.appendChild(diagramRow(spec.diagram));
       if (f.body.children.length) sec.body.appendChild(f.root);
     }
     if (sec.body.children.length) host.appendChild(sec.root);
@@ -529,9 +679,13 @@ function fit() {
 
 /* ---------- layout handles ----------
  *
- * Outlines drawn over the chart while Shift is held, so the draggable regions
- * are visible rather than guessed at. They live in their own group that the
- * renderer knows nothing about, and are rebuilt after every render.
+ * Outlines drawn over the chart while shift is held. They are also the hit
+ * areas: the diagrams are mostly empty space, so a pointerdown between two
+ * shapes inside one hits nothing and the drag falls through to a pan. Only the
+ * first diagram appeared to work, because its Sun covers most of its box.
+ *
+ * Keeping them in an overlay the renderer knows nothing about means the
+ * exported SVG stays clean, and the outline can travel with the drag.
  */
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -542,12 +696,21 @@ function handleBoxes() {
     // The rim band sits outside the plate radius and moves with it.
     const r = hemi.radius + (state.theme.plate.scale_band ?? 0);
     boxes.push({
+      kind: "plate", name: hemi.pole,
       label: `${hemi.pole === "north" ? "NORTHERN" : "SOUTHERN"} PLATE`,
       x: hemi.cx - r, y: hemi.cy - r, w: 2 * r, h: 2 * r,
     });
   }
   for (const { name, box } of state.panelBoxes ?? []) {
-    boxes.push({ label: (PANEL_LABELS[name] ?? name).toUpperCase(), ...box });
+    boxes.push({ kind: "panel", name, label: (PANEL_LABELS[name] ?? name).toUpperCase(), ...box });
+  }
+  for (const t of state.textBoxes ?? []) {
+    // Text is anchored at its middle, so the box is estimated around it.
+    const w = Math.max(60, (state.config.title?.length ?? 12) * t.size * 0.62);
+    boxes.push({
+      kind: "text", name: t.name, label: t.label,
+      x: t.x - w / 2, y: t.y - t.size, w, h: t.size * 1.5,
+    });
   }
   return boxes;
 }
@@ -559,24 +722,39 @@ function drawHandles() {
 
   const g = document.createElementNS(SVG_NS, "g");
   g.setAttribute("id", "layer-handles");
-  g.setAttribute("pointer-events", "none");
   for (const box of handleBoxes()) {
+    const group = document.createElementNS(SVG_NS, "g");
+    group.setAttribute("data-handle", `${box.kind}:${box.name}`);
+    const selected = state.selection &&
+      state.selection.kind === box.kind && state.selection.name === box.name;
+    group.setAttribute("class", selected ? "handle handle-selected" : "handle");
+
     const rect = document.createElementNS(SVG_NS, "rect");
     rect.setAttribute("x", box.x.toFixed(2));
     rect.setAttribute("y", box.y.toFixed(2));
     rect.setAttribute("width", box.w.toFixed(2));
     rect.setAttribute("height", box.h.toFixed(2));
     rect.setAttribute("class", "handle-box");
-    g.appendChild(rect);
+    group.appendChild(rect);
 
     const label = document.createElementNS(SVG_NS, "text");
     label.setAttribute("x", (box.x + 2.5).toFixed(2));
     label.setAttribute("y", (box.y + 5.5).toFixed(2));
     label.setAttribute("class", "handle-label");
     label.textContent = box.label;
-    g.appendChild(label);
+    group.appendChild(label);
+
+    g.appendChild(group);
   }
   state.svg.appendChild(g);
+}
+
+function select(handle) {
+  const same = state.selection && handle &&
+    state.selection.kind === handle.kind && state.selection.name === handle.name;
+  state.selection = handle ?? null;
+  if (!same) buildControls();
+  drawHandles();
 }
 
 /** Write a finished drag into the config, then re-render from it. */
@@ -587,13 +765,18 @@ function commitMove(handle, dx, dy) {
     if (!hemi) return;
     placement.plates = placement.plates ?? {};
     placement.plates[handle.name] = { cx: hemi.cx + dx, cy: hemi.cy + dy };
-  } else {
+  } else if (handle.kind === "panel") {
     const entry = state.panelBoxes.find((b) => b.name === handle.name);
     if (!entry) return;
     placement.panels = placement.panels ?? {};
     placement.panels[handle.name] = {
       ...entry.box, x: entry.box.x + dx, y: entry.box.y + dy,
     };
+  } else {
+    const entry = state.textBoxes.find((b) => b.name === handle.name);
+    if (!entry) return;
+    placement.texts = placement.texts ?? {};
+    placement.texts[handle.name] = { x: entry.x + dx, y: entry.y + dy };
   }
   rerender();
 }
@@ -651,18 +834,25 @@ function initViewport() {
    * re-rendering on every pointermove would be a 35 ms frame. */
   let pointer = null;
 
+  // The overlay handle is what gets hit, since it is a solid rect over the
+  // whole object rather than the object's own scattered shapes.
   const handleFor = (target) => {
-    const panel = target.closest?.("[data-drag]");
-    if (panel) return { kind: "panel", name: panel.dataset.drag.split(":")[1] };
-    const plate = target.closest?.("[data-plate]");
-    if (plate) return { kind: "plate", name: plate.dataset.plate };
-    return null;
+    const hit = target.closest?.("[data-handle]");
+    if (!hit) return null;
+    const [kind, name] = hit.dataset.handle.split(":");
+    return { kind, name };
   };
 
-  const piecesFor = (handle) =>
-    handle.kind === "plate"
-      ? [...state.svg.querySelectorAll(`[data-plate="${handle.name}"]`)]
-      : [...state.svg.querySelectorAll(`[data-drag="panel:${handle.name}"]`)];
+  const piecesFor = (handle) => {
+    const selector = handle.kind === "plate"
+      ? `[data-plate="${handle.name}"]`
+      : `[data-drag="${handle.kind}:${handle.name}"]`;
+    return [
+      ...state.svg.querySelectorAll(selector),
+      // The outline travels with what it outlines.
+      ...state.svg.querySelectorAll(`[data-handle="${handle.kind}:${handle.name}"]`),
+    ];
+  };
 
   el.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
@@ -670,6 +860,8 @@ function initViewport() {
     // is a coin toss between moving the poster and moving the view, and the
     // grabbable regions are invisible.
     const handle = event.shiftKey ? handleFor(event.target) : null;
+    // Shift-clicking selects, whether or not a drag follows.
+    if (event.shiftKey) select(handle);
     pointer = {
       id: event.pointerId, x: event.clientX, y: event.clientY,
       dx: 0, dy: 0, handle,

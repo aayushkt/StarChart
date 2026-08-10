@@ -60,6 +60,12 @@ body {
 }
 .loading { padding: 20px 18px; color: var(--text-dim); }
 
+.btn.back {
+  margin: 10px 18px 4px; flex: none; width: calc(100% - 36px);
+  text-align: left; font-size: 12px; color: var(--text-dim);
+}
+.btn.back:hover { color: var(--text); }
+
 .panel-foot {
   display: flex;
   gap: 8px;
@@ -211,6 +217,10 @@ input[type="range"]::-moz-range-thumb {
    pans, which is the behaviour that does not need explaining. */
 .stage-scroll.editing .chart-wrap [data-plate],
 .stage-scroll.editing .chart-wrap [data-drag] { cursor: move; }
+
+.handle > .handle-box { fill: transparent; }
+.handle-selected .handle-box { stroke-width: 1.4; stroke-dasharray: none; }
+.handle-selected .handle-label { font-weight: 600; }
 
 .handle-box {
   fill: none;

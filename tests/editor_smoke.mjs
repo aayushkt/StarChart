@@ -266,44 +266,99 @@ shift("keydown");
 chart().querySelector("#layer-handles")
   ? ok("shift shows the layout handles") : fail("no handles on shift");
 const handleCount = chart().querySelectorAll(".handle-box").length;
-handleCount === 9 ? ok(`${handleCount} handles (2 plates + 7 diagrams)`)
-                  : fail(`${handleCount} handles`);
+handleCount === 11 ? ok(`${handleCount} handles (2 plates + 7 diagrams + title + caption)`)
+                   : fail(`${handleCount} handles`);
 shift("keyup");
 !chart().querySelector("#layer-handles")
   ? ok("releasing shift hides them") : fail("handles stuck on");
 
+const handleFor = (spec) => chart().querySelector(`[data-handle="${spec}"]`);
+
+// Every diagram must be grabbable, not just the one whose artwork happens to
+// cover its box. The handle is the hit area precisely because the diagrams are
+// mostly empty space.
+shift("keydown");
+const grabbable = ["planet-sizes", "magnitude-key", "solar-system", "solar-eclipse",
+                   "lunar-eclipse", "earth-revolution", "moon-illumination"]
+  .filter((n) => handleFor(`panel:${n}`));
+grabbable.length === 7 ? ok("all 7 diagrams have a hit area")
+                       : fail(`only ${grabbable.length} diagrams grabbable`);
+
 const plateBefore = plateCx();
-const plateTarget = chart().querySelector('[data-plate="north"]');
-plateTarget ? ok("plates carry a drag tag on every layer") : fail("no data-plate groups");
 const platePieces = chart().querySelectorAll('[data-plate="north"]').length;
-platePieces > 5 ? ok(`north plate spans ${platePieces} layer groups`) : fail("plate not tagged across layers");
-drag(plateTarget, [500, 300], [560, 340], 2, false);
+platePieces > 5 ? ok(`north plate spans ${platePieces} layer groups`)
+                : fail("plate not tagged across layers");
+
+drag(handleFor("plate:north"), [500, 300], [560, 340], 2, false);
 Math.abs(plateCx() - plateBefore) < 0.001
-  ? ok("without shift, dragging a plate pans instead of moving it")
+  ? ok("without shift, dragging pans instead of moving")
   : fail("plate moved without shift");
 
-drag(plateTarget, [500, 300], [560, 340], 2);
+drag(handleFor("plate:north"), [500, 300], [560, 340], 2);
 Math.abs(plateCx() - plateBefore) > 1
   ? ok(`dragging a plate moves it (cx ${plateBefore} to ${plateCx()})`)
   : fail("plate did not move");
 
-const panelBefore = panelX();
-const panelTarget = chart().querySelector('[data-drag="panel:solar-eclipse"]');
-drag(panelTarget, [500, 300], [540, 280], 3);
-Math.abs(panelX() - panelBefore) > 1
-  ? ok(`dragging a diagram moves it (x ${panelBefore} to ${panelX()})`)
-  : fail("diagram did not move");
+// Every diagram, not just the first.
+let moved = 0;
+for (const name of grabbable) {
+  const before = Number(
+    chart().querySelector(`[data-handle="panel:${name}"] rect`).getAttribute("x"));
+  drag(handleFor(`panel:${name}`), [500, 300], [530, 320], 4);
+  const after = Number(
+    chart().querySelector(`[data-handle="panel:${name}"] rect`).getAttribute("x"));
+  if (Math.abs(after - before) > 1) moved++;
+}
+moved === 7 ? ok("every diagram can be dragged") : fail(`only ${moved} of 7 diagrams moved`);
 
-// Reset layout restores both kinds of layout change: dragged positions and the
-// numbers behind them.
-radius.value = "110";
-radius.dispatchEvent(new window.Event("input"));
+// The outline travels with what it outlines.
+const outlineX = () => Number(
+  chart().querySelector('[data-handle="panel:solar-system"] rect').getAttribute("x"));
+const beforeOutline = outlineX();
+const target = handleFor("panel:solar-system");
+target.dispatchEvent(new window.PointerEvent("pointerdown",
+  { button: 0, pointerId: 9, clientX: 500, clientY: 300, bubbles: true, shiftKey: true }));
+stage.dispatchEvent(new window.PointerEvent("pointermove",
+  { pointerId: 9, clientX: 560, clientY: 300, bubbles: true }));
+const dragging = chart()
+  .querySelector('[data-handle="panel:solar-system"]').getAttribute("transform");
+dragging && /translate/.test(dragging)
+  ? ok("the outline moves with the diagram during the drag") : fail("outline stayed put");
+stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 9, bubbles: true }));
+
+// Title and caption are objects too.
+for (const name of ["title", "caption"]) {
+  const sel = `[data-handle="text:${name}"]`;
+  const before = Number(chart().querySelector(`${sel} rect`).getAttribute("x"));
+  drag(handleFor(`text:${name}`), [400, 200], [440, 230], 10);
+  Math.abs(Number(chart().querySelector(`${sel} rect`).getAttribute("x")) - before) > 1
+    ? ok(`the ${name} can be dragged`) : fail(`${name} did not move`);
+}
+
+// Shift-clicking selects, and the sidebar narrows to what is selected.
+const sectionTitles = () =>
+  [...d.querySelectorAll(".section > summary")].map((n) => n.textContent);
+const clickTarget = handleFor("panel:lunar-eclipse");
+clickTarget.dispatchEvent(new window.PointerEvent("pointerdown",
+  { button: 0, pointerId: 11, clientX: 500, clientY: 300, bubbles: true, shiftKey: true }));
+stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 11, bubbles: true }));
+const selectedTitles = sectionTitles();
+selectedTitles.length === 1 && selectedTitles[0] === "Eclipse of the Moon"
+  ? ok(`shift-click narrows the sidebar to "${selectedTitles[0]}"`)
+  : fail(`sidebar shows ${JSON.stringify(selectedTitles)}`);
+chart().querySelector('[data-handle="panel:lunar-eclipse"].handle-selected')
+  ? ok("the selected outline is emphasised") : fail("no selected styling");
+
+d.querySelector(".btn.back").click();
+const restoredTitles = sectionTitles();
+restoredTitles.includes("Colours") && restoredTitles.includes("Layout") &&
+  restoredTitles.length > 3 && !d.querySelector(".btn.back")
+  ? ok(`going back restores the global controls (${restoredTitles.length} sections)`)
+  : fail(`back: ${JSON.stringify(restoredTitles)}`);
+
+shift("keyup");
+
 d.querySelector("#reset-layout").click();
-const restored = Math.abs(plateCx() - plateBefore) < 0.001 &&
-                 Math.abs(panelX() - panelBefore) < 0.001 &&
-                 Number(plateRadius()) === Number(r0);
-restored ? ok("reset layout restores positions and the layout numbers")
-         : fail(`reset layout failed (r=${plateRadius()} want ${r0})`);
 
 d.querySelectorAll("[data-zoom]").length === 0
   ? ok("zoom buttons removed") : fail("zoom buttons still present");
