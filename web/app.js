@@ -28,8 +28,10 @@ const state = {
         hidden: new Set() },
   view: { scale: 1, tx: 0, ty: 0 },
   fitted: true,
+  editing: false,
   panelsOff: new Set(),
-  allPanels: { middle: [], bottom: [] },
+  allPanels: { middle: [], rows: [] },
+  baseConfig: null,
   hemispheres: [],
   panelBoxes: [],
 };
@@ -57,10 +59,11 @@ function applyLayerVisibility() {
 
 function rerender() {
   const observer = state.observer ? atMinutes(state.observer, state.ui.minutes) : null;
+  const keep = (names) => names.filter((n) => !state.panelsOff.has(n));
   const panels = state.config.panels && {
     ...state.config.panels,
-    middle: (state.allPanels.middle ?? []).filter((n) => !state.panelsOff.has(n)),
-    bottom: (state.allPanels.bottom ?? []).filter((n) => !state.panelsOff.has(n)),
+    middle: keep(state.allPanels.middle ?? []),
+    rows: (state.allPanels.rows ?? []).map(keep).filter((r) => r.length),
   };
   const built = buildChart({
     config: panels ? { ...state.config, panels } : state.config,
@@ -76,6 +79,7 @@ function rerender() {
   state.svg.removeAttribute("height");
   state.svg.style.width = `${state.svg.viewBox.baseVal.width}px`;
   applyLayerVisibility();
+  drawHandles();
   paint();
 }
 
@@ -385,8 +389,10 @@ const PANEL_LABELS = {
 /** One checkbox per diagram. Switching one off re-renders, so the rest of the
  *  band spreads out to fill the space rather than leaving a hole. */
 function panelRows() {
-  const bands = ["middle", "bottom"];
-  const present = new Set(bands.flatMap((b) => state.config.panels?.[b] ?? []));
+  const present = new Set([
+    ...(state.allPanels.middle ?? []),
+    ...(state.allPanels.rows ?? []).flat(),
+  ]);
   return Object.entries(PANEL_LABELS)
     .filter(([name]) => present.has(name) || state.panelsOff.has(name))
     .map(([name, label]) => {
@@ -521,6 +527,58 @@ function fit() {
   paint();
 }
 
+/* ---------- layout handles ----------
+ *
+ * Outlines drawn over the chart while Shift is held, so the draggable regions
+ * are visible rather than guessed at. They live in their own group that the
+ * renderer knows nothing about, and are rebuilt after every render.
+ */
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function handleBoxes() {
+  const boxes = [];
+  for (const hemi of state.hemispheres ?? []) {
+    // The rim band sits outside the plate radius and moves with it.
+    const r = hemi.radius + (state.theme.plate.scale_band ?? 0);
+    boxes.push({
+      label: `${hemi.pole === "north" ? "NORTHERN" : "SOUTHERN"} PLATE`,
+      x: hemi.cx - r, y: hemi.cy - r, w: 2 * r, h: 2 * r,
+    });
+  }
+  for (const { name, box } of state.panelBoxes ?? []) {
+    boxes.push({ label: (PANEL_LABELS[name] ?? name).toUpperCase(), ...box });
+  }
+  return boxes;
+}
+
+function drawHandles() {
+  if (!state.svg) return;
+  state.svg.querySelector("#layer-handles")?.remove();
+  if (!state.editing) return;
+
+  const g = document.createElementNS(SVG_NS, "g");
+  g.setAttribute("id", "layer-handles");
+  g.setAttribute("pointer-events", "none");
+  for (const box of handleBoxes()) {
+    const rect = document.createElementNS(SVG_NS, "rect");
+    rect.setAttribute("x", box.x.toFixed(2));
+    rect.setAttribute("y", box.y.toFixed(2));
+    rect.setAttribute("width", box.w.toFixed(2));
+    rect.setAttribute("height", box.h.toFixed(2));
+    rect.setAttribute("class", "handle-box");
+    g.appendChild(rect);
+
+    const label = document.createElementNS(SVG_NS, "text");
+    label.setAttribute("x", (box.x + 2.5).toFixed(2));
+    label.setAttribute("y", (box.y + 5.5).toFixed(2));
+    label.setAttribute("class", "handle-label");
+    label.textContent = box.label;
+    g.appendChild(label);
+  }
+  state.svg.appendChild(g);
+}
+
 /** Write a finished drag into the config, then re-render from it. */
 function commitMove(handle, dx, dy) {
   const placement = state.config.placement ?? (state.config.placement = {});
@@ -608,7 +666,10 @@ function initViewport() {
 
   el.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
-    const handle = state.locked ? null : handleFor(event.target);
+    // Layout editing is deliberately modal. Without it, every drag near a plate
+    // is a coin toss between moving the poster and moving the view, and the
+    // grabbable regions are invisible.
+    const handle = event.shiftKey ? handleFor(event.target) : null;
     pointer = {
       id: event.pointerId, x: event.clientX, y: event.clientY,
       dx: 0, dy: 0, handle,
@@ -650,6 +711,18 @@ function initViewport() {
   el.addEventListener("pointercancel", release);
 
   el.addEventListener("dblclick", fit);
+
+  /* Shift reveals the boxes and arms the drag. Tracked on the window so the
+   * outlines appear wherever the pointer happens to be. */
+  const setEditing = (on) => {
+    if (state.editing === on) return;
+    state.editing = on;
+    el.classList.toggle("editing", on);
+    drawHandles();
+  };
+  window.addEventListener("keydown", (e) => { if (e.key === "Shift") setEditing(true); });
+  window.addEventListener("keyup", (e) => { if (e.key === "Shift") setEditing(false); });
+  window.addEventListener("blur", () => setEditing(false));
   window.addEventListener("resize", () => { if (state.fitted) fit(); });
 }
 
@@ -709,8 +782,11 @@ async function boot() {
   state.layers = loaded.layers;
   state.allPanels = {
     middle: [...(loaded.config.panels?.middle ?? [])],
-    bottom: [...(loaded.config.panels?.bottom ?? [])],
+    rows: (loaded.config.panels?.rows ?? []).map((r) => [...r]),
   };
+  // Kept pristine so "Reset layout" can restore the numbers, not just clear the
+  // drags -- moving a slider is a layout change too.
+  state.baseConfig = structuredClone(loaded.config);
   state.ui.labelBucket = loaded.theme.labels.mag_bucket;
   if (state.observer) state.ui.minutes = state.observer.minutes;
 
@@ -725,15 +801,19 @@ async function boot() {
 
 document.getElementById("download").addEventListener("click", download);
 document.getElementById("reset-layout")?.addEventListener("click", () => {
-  delete state.config.placement;
+  // Both kinds of layout change: the numbers and anything dragged.
+  state.config = structuredClone(state.baseConfig);
+  state.panelsOff.clear();
+  buildControls();
   rerender();
 });
 document.getElementById("reset").addEventListener("click", () => {
-  delete state.config.placement;
+  state.config = structuredClone(state.baseConfig);
+  state.panelsOff.clear();
   state.ui = {
     starScale: 1, mwScale: 1, magLimit: 5,
     labelBucket: state.theme.labels.mag_bucket,
-    minutes: state.observer ? state.observer.local_minutes : 720,
+    minutes: state.observer ? state.observer.minutes : 720,
     hidden: new Set(),
   };
   applyPreset("Original");

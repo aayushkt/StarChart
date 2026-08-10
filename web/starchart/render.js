@@ -240,13 +240,19 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
         h: (south.cy - south.radius) - (north.cy + north.radius) - 2 * gutter,
       }]);
     }
-    if (config.panels.bottom?.length) {
+    // Everything else stacks in rows below the lower plate, sharing the space
+    // evenly.
+    const rows = config.panels.rows ?? (config.panels.bottom ? [config.panels.bottom] : []);
+    if (rows.length) {
       const top = south.cy + south.radius + gutter;
-      bands.push([config.panels.bottom, {
-        x: page.margin, y: top,
-        w: page.width - 2 * page.margin,
-        h: (page.height - page.margin - (observer ? 14 : 0)) - top,
-      }]);
+      const available = (page.height - page.margin - (observer ? 14 : 0)) - top;
+      const rowHeight = (available - gutter * (rows.length - 1)) / rows.length;
+      rows.forEach((names, i) => {
+        bands.push([names, {
+          x: page.margin, y: top + i * (rowHeight + gutter),
+          w: page.width - 2 * page.margin, h: rowHeight,
+        }]);
+      });
     }
     layers["layer-panels"].push(
       bands.map(([names, band]) =>

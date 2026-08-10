@@ -76,7 +76,14 @@ function planetSizes(box, theme, ctx) {
   // Jupiter is a visible disc, the Sun is ten times wider than the panel. So the
   // Sun appears as a limb sweeping through the left of the box, exactly as the
   // original prints "One Half of the Sun's Disk".
-  const scale = (a.h * 0.34) / PLANETS[4].km;
+  // Two constraints, not one: Jupiter has to fit the panel's height, and the
+  // whole row has to fit its width. Scaling off height alone overflows the box
+  // as soon as the rows get taller, which silently clips the outer planets.
+  const gap = 3.2;
+  const spanKm = PLANETS.reduce((t, p) => t + 2 * p.km, 0);
+  const byHeight = (a.h * 0.34) / PLANETS[4].km;
+  const byWidth = (a.w * 0.74 - gap * (PLANETS.length - 1)) / spanKm;
+  const scale = Math.min(byHeight, byWidth);
   const sunR = SUN_KM * scale;
 
   const parts = [];
@@ -86,8 +93,7 @@ function planetSizes(box, theme, ctx) {
   parts.push(caption(a.x + a.w * 0.07, a.cy, "THE SUN", "panel-note"));
 
   // Planets in a row, true to each other and to that same Sun.
-  let x = a.x + a.w * 0.22;
-  const gap = 3.2;
+  let x = a.x + a.w * 0.24;
   for (const planet of PLANETS) {
     const r = Math.max(0.28, planet.km * scale);
     x += r;

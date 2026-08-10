@@ -7,23 +7,24 @@ export default {
   title: "CELESTIAL CHART",
 
   page: {
-    // 24 x 36 inches, in millimetres. SVG user units are millimetres throughout,
-    // so the file carries its real print size.
+    // 24 x 42 inches, in millimetres. SVG user units are millimetres throughout,
+    // so the file carries its real print size. Taller than the original sheet
+    // because stacking the plates vertically leaves nowhere for the diagrams to
+    // go except below them.
     width: 609.6,
-    height: 914.4,
+    height: 1066.8,
     margin: 46.0,
   },
 
   layout: {
     // North circle on top, south below -- the one structural change from the
     // original, which prints them side by side.
-    // Nothing here is structural -- the editor exposes all of it. These are
-    // only defaults chosen so the plates and the panels do not collide on a
-    // first open.
-    radius: 150.0,
-    gap: 78.0,
+    // Nothing here is structural -- the editor exposes all of it, and anything
+    // dragged overrides it entirely.
+    radius: 166.0,
+    gap: 26.0,
     // First circle starts this far below the top margin, leaving room for the title.
-    top_offset: 46.0,
+    top_offset: 92.0,
     // How far past the celestial equator each circle reaches. The original
     // overlaps: both of its circles carry Virgo and Sextans.
     overlap_deg: 15.0,
@@ -53,9 +54,13 @@ export default {
     // generated from real figures rather than traced, so the planet sizes and
     // distances are true and the Moon shows the phase on the configured date.
     enabled: true,
-    // Which panels sit in the band between the circles, and which below them.
-    middle: ["planet-sizes", "magnitude-key", "solar-system"],
-    bottom: ["solar-eclipse", "lunar-eclipse", "earth-revolution", "moon-illumination"],
+    // The plates sit close together, as they do on the original, so the
+    // diagrams go below them in rows rather than between.
+    middle: [],
+    rows: [
+      ["planet-sizes", "magnitude-key", "solar-system"],
+      ["solar-eclipse", "lunar-eclipse", "earth-revolution", "moon-illumination"],
+    ],
     gutter: 10.0,
   },
 

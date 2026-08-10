@@ -189,7 +189,7 @@ describe("document", () => {
   });
 
   it("carries its real print size", () => {
-    assert.match(markup, /width="609.6mm" height="914.4mm"/);
+    assert.match(markup, /width="609.6mm" height="1066.8mm"/);
   });
 
   it("has every layer the panel knows about", async () => {

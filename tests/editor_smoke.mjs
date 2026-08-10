@@ -150,11 +150,12 @@ labelSlider.dispatchEvent(new window.Event("input"));
 // --- layout controls change geometry, not just style
 const radius = [...sliders].find((s) => s.dataset.path === "config.layout.radius");
 radius ? ok("layout controls present") : fail("no layout sliders");
-const plateR = () => chart().querySelector("#layer-plate circle").getAttribute("r");
-const r0 = plateR();
+const plateRadius = () => chart().querySelector("#layer-plate circle").getAttribute("r");
+const r0 = plateRadius();
 radius.value = "120";
 radius.dispatchEvent(new window.Event("input"));
-plateR() !== r0 ? ok(`circle radius is editable (${r0} to ${plateR()})`) : fail("radius did nothing");
+plateRadius() !== r0 ? ok(`circle radius is editable (${r0} to ${plateRadius()})`)
+                     : fail("radius did nothing");
 radius.value = String(r0);
 radius.dispatchEvent(new window.Event("input"));
 
@@ -235,9 +236,9 @@ const panned = view();
 
 // Dragging the paper itself pans; dragging an object moves the object.
 const dragFrom = view();
-const drag = (target, from, to, id = 1) => {
+const drag = (target, from, to, id = 1, shiftKey = true) => {
   target.dispatchEvent(new window.PointerEvent("pointerdown",
-    { button: 0, pointerId: id, clientX: from[0], clientY: from[1], bubbles: true }));
+    { button: 0, pointerId: id, clientX: from[0], clientY: from[1], bubbles: true, shiftKey }));
   stage.dispatchEvent(new window.PointerEvent("pointermove",
     { pointerId: id, clientX: to[0], clientY: to[1], bubbles: true }));
   stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: id, bubbles: true }));
@@ -259,11 +260,28 @@ const plateCx = () => Number(chart().querySelector("#layer-plate circle").getAtt
 const panelX = () => Number(
   chart().querySelector('[data-drag="panel:solar-eclipse"] rect')?.getAttribute("x") ?? NaN);
 
+// --- layout editing is modal: nothing moves unless shift is held
+const shift = (type) => window.dispatchEvent(new window.KeyboardEvent(type, { key: "Shift" }));
+shift("keydown");
+chart().querySelector("#layer-handles")
+  ? ok("shift shows the layout handles") : fail("no handles on shift");
+const handleCount = chart().querySelectorAll(".handle-box").length;
+handleCount === 9 ? ok(`${handleCount} handles (2 plates + 7 diagrams)`)
+                  : fail(`${handleCount} handles`);
+shift("keyup");
+!chart().querySelector("#layer-handles")
+  ? ok("releasing shift hides them") : fail("handles stuck on");
+
 const plateBefore = plateCx();
 const plateTarget = chart().querySelector('[data-plate="north"]');
 plateTarget ? ok("plates carry a drag tag on every layer") : fail("no data-plate groups");
 const platePieces = chart().querySelectorAll('[data-plate="north"]').length;
 platePieces > 5 ? ok(`north plate spans ${platePieces} layer groups`) : fail("plate not tagged across layers");
+drag(plateTarget, [500, 300], [560, 340], 2, false);
+Math.abs(plateCx() - plateBefore) < 0.001
+  ? ok("without shift, dragging a plate pans instead of moving it")
+  : fail("plate moved without shift");
+
 drag(plateTarget, [500, 300], [560, 340], 2);
 Math.abs(plateCx() - plateBefore) > 1
   ? ok(`dragging a plate moves it (cx ${plateBefore} to ${plateCx()})`)
@@ -276,9 +294,16 @@ Math.abs(panelX() - panelBefore) > 1
   ? ok(`dragging a diagram moves it (x ${panelBefore} to ${panelX()})`)
   : fail("diagram did not move");
 
+// Reset layout restores both kinds of layout change: dragged positions and the
+// numbers behind them.
+radius.value = "110";
+radius.dispatchEvent(new window.Event("input"));
 d.querySelector("#reset-layout").click();
-Math.abs(plateCx() - plateBefore) < 0.001 && Math.abs(panelX() - panelBefore) < 0.001
-  ? ok("reset layout restores the computed arrangement") : fail("reset layout failed");
+const restored = Math.abs(plateCx() - plateBefore) < 0.001 &&
+                 Math.abs(panelX() - panelBefore) < 0.001 &&
+                 Number(plateRadius()) === Number(r0);
+restored ? ok("reset layout restores positions and the layout numbers")
+         : fail(`reset layout failed (r=${plateRadius()} want ${r0})`);
 
 d.querySelectorAll("[data-zoom]").length === 0
   ? ok("zoom buttons removed") : fail("zoom buttons still present");
