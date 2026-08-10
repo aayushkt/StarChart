@@ -203,6 +203,25 @@ describe("document", () => {
     assert.ok(!markup.includes("<![CDATA["));
   });
 
+  it("draws every diagram once", () => {
+    const ids = [...markup.matchAll(/id="(panel-[a-z-]+)"/g)]
+      .map((m) => m[1]).filter((id) => !id.startsWith("panel-clip"));
+    assert.equal(ids.length, new Set(ids).size, "a diagram was emitted twice");
+    assert.equal(ids.length, 7);
+  });
+
+  it("uses true relative sizes and distances in the diagrams", async () => {
+    const { PLANETS, SUN_KM } = await import("../web/starchart/panels.js");
+    // Guard the figures themselves: a diagram that silently drifts from real
+    // numbers is worse than one that is obviously schematic.
+    assert.equal(SUN_KM, 696000);
+    assert.equal(PLANETS.find((p) => p.name === "EARTH").km, 6371);
+    assert.equal(PLANETS.find((p) => p.name === "JUPITER").km, 69911);
+    assert.ok(Math.abs(PLANETS.find((p) => p.name === "NEPTUNE").au - 30.069) < 1e-6);
+    // Ordered outward, which several panels rely on.
+    for (let i = 1; i < PLANETS.length; i++) assert.ok(PLANETS[i].au > PLANETS[i - 1].au);
+  });
+
   it("matches the golden snapshot", () => {
     const golden = fs.readFileSync(path.join(ROOT, "tests/golden/chart.svg"), "utf8");
     if (markup !== golden) {

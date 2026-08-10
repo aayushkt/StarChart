@@ -127,6 +127,33 @@ export default {
     moon_label_deg: 335.0,
   },
 
+  panels: {
+    // The diagrams around the plates. Drawn in the frame's ink on the paper, so
+    // they read as engraving on the sheet rather than as part of a plate.
+    rule: true,
+    rule_stroke: "#1d3a49",
+    rule_width: 0.4,
+    title_size: 3.2,
+    title_tracking: 1.1,
+    title_gap: 4.0,
+    title_space: 3.0,
+    title_fill: "#1d3a49",
+    caption_size: 2.3,
+    tick_size: 2.0,
+    ink: "#1d3a49",
+    line_width: 0.35,
+    sun: "#f0b429",
+    earth: "#7ea9a2",
+    moon: "#f4efdc",
+    moon_dark: "#2a4a5e",
+    umbra: "#1d3a49",
+    umbra_opacity: 0.24,
+    orbit: "#6d8a97",
+    planet: "#1d3a49",
+    // Stars in the key sit on paper, not on a plate, so they take the ink.
+    star_sample: "#c99a1e",
+  },
+
   horizon: {
     // The observer's overlay. Warmer than everything else on the plate so it
     // reads as an annotation laid over the chart rather than part of it.

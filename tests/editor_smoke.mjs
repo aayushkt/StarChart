@@ -88,10 +88,11 @@ sections.length >= 4 && folders.length >= 8
 // leave it silently uncontrollable.
 const layerIds = [...chart().querySelectorAll('g[id^="layer-"]')]
   .map((g) => g.id).filter((id) => id !== "layer-caption");
-const toggleCount = d.querySelectorAll(".check input").length;
-layerIds.length === toggleCount
+const toggled = new Set([...d.querySelectorAll("[data-layer]")].map((i) => i.dataset.layer));
+const orphans = layerIds.filter((id) => !toggled.has(id));
+orphans.length === 0
   ? ok(`all ${layerIds.length} layers have a toggle`)
-  : fail(`${layerIds.length} layers but ${toggleCount} toggles`);
+  : fail(`layers with no toggle: ${orphans.join(", ")}`);
 
 const swatches = d.querySelectorAll("input.swatch");
 const sliders = d.querySelectorAll('input[type="range"]');
@@ -145,6 +146,34 @@ labelSlider.dispatchEvent(new window.Event("input"));
 
 ["layer-tropics", "layer-ecliptic", "layer-colures"].every((id) => chart().querySelector("#" + id))
   ? ok("tropics, ecliptic and colures are separate layers") : fail("reference layers missing");
+
+// --- layout controls change geometry, not just style
+const radius = [...sliders].find((s) => s.dataset.path === "config.layout.radius");
+radius ? ok("layout controls present") : fail("no layout sliders");
+const plateR = () => chart().querySelector("#layer-plate circle").getAttribute("r");
+const r0 = plateR();
+radius.value = "120";
+radius.dispatchEvent(new window.Event("input"));
+plateR() !== r0 ? ok(`circle radius is editable (${r0} to ${plateR()})`) : fail("radius did nothing");
+radius.value = String(r0);
+radius.dispatchEvent(new window.Event("input"));
+
+// --- diagrams
+const panelIds = () => [...chart().querySelectorAll('g[id^="panel-"]')]
+  .map((g) => g.id).filter((id) => !id.startsWith("panel-clip"));
+const allPanels = panelIds();
+allPanels.length === 7 ? ok(`${allPanels.length} diagrams drawn`) : fail(`${allPanels.length} diagrams`);
+
+const diagramToggle = [...d.querySelectorAll(".check")]
+  .find((c) => c.textContent.trim() === "Eclipse of the Sun");
+diagramToggle ? ok("per-diagram toggles present") : fail("no diagram toggles");
+const input = diagramToggle.querySelector("input");
+input.checked = false;
+input.dispatchEvent(new window.Event("change"));
+panelIds().length === allPanels.length - 1
+  ? ok("switching a diagram off re-renders the band") : fail("diagram not removed");
+input.checked = true;
+input.dispatchEvent(new window.Event("change"));
 
 // --- the time slider re-renders the geometry
 const timeSlider = [...sliders].find((s) => s.closest(".section")

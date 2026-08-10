@@ -17,10 +17,13 @@ export default {
   layout: {
     // North circle on top, south below -- the one structural change from the
     // original, which prints them side by side.
-    radius: 166.0,
-    gap: 26.0,
+    // Nothing here is structural -- the editor exposes all of it. These are
+    // only defaults chosen so the plates and the panels do not collide on a
+    // first open.
+    radius: 150.0,
+    gap: 78.0,
     // First circle starts this far below the top margin, leaving room for the title.
-    top_offset: 92.0,
+    top_offset: 46.0,
     // How far past the celestial equator each circle reaches. The original
     // overlaps: both of its circles carry Virgo and Sextans.
     overlap_deg: 15.0,
@@ -43,6 +46,17 @@ export default {
     // "english", "latin", or "both" -- the original carries both, English over
     // Latin in parentheses.
     constellation_names: "both",
+  },
+
+  panels: {
+    // The ornamental diagrams the original prints around its plates. Each is
+    // generated from real figures rather than traced, so the planet sizes and
+    // distances are true and the Moon shows the phase on the configured date.
+    enabled: true,
+    // Which panels sit in the band between the circles, and which below them.
+    middle: ["planet-sizes", "magnitude-key", "solar-system"],
+    bottom: ["solar-eclipse", "lunar-eclipse", "earth-revolution", "moon-illumination"],
+    gutter: 10.0,
   },
 
   bodies: {

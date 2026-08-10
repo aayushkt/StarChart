@@ -9,6 +9,7 @@ import { drawBody, drawMoonTrack, states } from "./bodies.js";
 import { Placer, bucketFor, placeConstellationLabels, placeStarLabels } from "./labels.js";
 import { arcText } from "./lettering.js";
 import { caption, drawOverlay } from "./overlay.js";
+import { drawBand } from "./panels.js";
 import { NORTH, stackedPair } from "./projection.js";
 import { drawColures, drawEcliptic, drawSmallCircles } from "./reference.js";
 import { LAYERS, stylesheet } from "./style.js";
@@ -27,6 +28,7 @@ const LAYER_ORDER = [
   "layer-colures", "layer-moon-track", "layer-star-halos", "layer-stars",
   "layer-constellation-labels", "layer-star-labels", "layer-rim",
   "layer-hemi-labels", "layer-sun", "layer-moon", "layer-horizon",
+  "layer-panels",
 ];
 
 function drawMilkyWay(hemi, data) {
@@ -209,13 +211,37 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
       { size: ty.hemi_size, tracking: ty.hemi_tracking, class_: "hemi-label" }));
   }
 
+  if (config.panels?.enabled) {
+    const gutter = config.panels.gutter ?? 10;
+    const bands = [];
+    // Between the plates, and below the lower one -- the two places the
+    // stacked layout leaves free.
+    if (config.panels.middle?.length) {
+      bands.push([config.panels.middle, {
+        x: page.margin, y: north.cy + north.radius + gutter,
+        w: page.width - 2 * page.margin,
+        h: (south.cy - south.radius) - (north.cy + north.radius) - 2 * gutter,
+      }]);
+    }
+    if (config.panels.bottom?.length) {
+      const top = south.cy + south.radius + gutter;
+      bands.push([config.panels.bottom, {
+        x: page.margin, y: top,
+        w: page.width - 2 * page.margin,
+        h: (page.height - page.margin - (observer ? 14 : 0)) - top,
+      }]);
+    }
+    layers["layer-panels"].push(
+      bands.map(([names, band]) => drawBand(names, band, theme, { config, observer })).join(""));
+  }
+
   for (const key of LAYER_ORDER) {
     body.push(`<g id="${key}">${layers[key].join("")}</g>`);
   }
 
   if (observer) {
     body.push(`<g id="layer-caption">` +
-      svg.text(page.width / 2, south.cy + south.radius + 34, caption(observer),
+      svg.text(page.width / 2, page.height - page.margin - 3, caption(observer),
         { class_: "caption" }) + `</g>`);
   }
 

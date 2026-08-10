@@ -84,7 +84,7 @@ export function moonMonth(observer, days = 29.53, samples = 240) {
 /* ---------------------------------------------------------------- drawing */
 
 /** Outline of the lit part of a disc, lit side toward +x. */
-function phasePoints(radius, illuminated, samples = 48) {
+export function phasePoints(radius, illuminated, samples = 48) {
   const k = Math.min(1, Math.max(0, illuminated));
   const d = 1 - 2 * k;            // +1 at new, 0 at quarter, -1 at full
   const limb = [], term = [];

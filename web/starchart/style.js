@@ -33,12 +33,14 @@ export const LAYERS = [
   ["layer-sun", "Sun & its day circle"],
   ["layer-moon", "Moon & its day circle"],
   ["layer-horizon", "Horizon & zenith"],
+  ["layer-panels", "Diagrams"],
 ];
 
 export function stylesheet(theme, ui = {}) {
   const pg = theme.page, pl = theme.plate, st = theme.stars;
   const mw = theme.milkyway, gr = theme.grid, ty = theme.type;
   const hz = theme.horizon, rf = theme.reference, lb = theme.labels, bd = theme.bodies;
+  const pn = theme.panels;
 
   const rules = [
     `.page-bg{fill:${pg.background}}`,
@@ -95,6 +97,29 @@ export function stylesheet(theme, ui = {}) {
     `.body-label{font-family:${ty.body};font-size:${n(bd.label_size)}px;font-style:italic}`,
     `.body-label-sun{fill:${bd.day_circle_sun}}`,
     `.body-label-moon{fill:${bd.day_circle_moon}}`,
+    `.panel-rule{stroke:${pn.rule_stroke};stroke-width:${n(pn.rule_width)}}`,
+    `.panel-title{fill:${pn.title_fill};font-family:${ty.display};` +
+      `font-size:${n(pn.title_size)}px;letter-spacing:${n(pn.title_tracking)}px;` +
+      `text-anchor:middle}`,
+    `.panel-caption{fill:${pn.ink};font-family:${ty.body};` +
+      `font-size:${n(pn.caption_size)}px;text-anchor:middle}`,
+    `.panel-note{fill:${pn.ink};font-family:${ty.body};` +
+      `font-size:${n(pn.caption_size)}px;font-style:italic;text-anchor:middle}`,
+    `.panel-tick{fill:${pn.ink};font-family:${ty.body};` +
+      `font-size:${n(pn.tick_size)}px;letter-spacing:0.3px;text-anchor:middle}`,
+    `.panel-sun{fill:${pn.sun}}`,
+    `.panel-earth{fill:${pn.earth};stroke:${pn.ink};stroke-width:${n(pn.line_width * 0.7)}}`,
+    `.panel-moon{fill:${pn.moon}}`,
+    `.panel-moon-dark{fill:${pn.moon_dark}}`,
+    `.panel-planet{fill:${pn.planet}}`,
+    `.panel-orbit{fill:none;stroke:${pn.orbit};stroke-width:${n(pn.line_width)}}`,
+    `.panel-axis{stroke:${pn.ink};stroke-width:${n(pn.line_width)}}`,
+    `.panel-ray{stroke:${pn.ink};stroke-width:${n(pn.line_width * 0.8)}}`,
+    `.panel-scale{stroke:${pn.ink};stroke-width:${n(pn.line_width)}}`,
+    `.panel-umbra{fill:${pn.umbra};fill-opacity:${n(pn.umbra_opacity)};stroke:none}`,
+    `.panel .star{fill:${pn.star_sample}}`,
+    `.panel .star-halo{fill:${pn.star_sample};fill-opacity:${n(st.halo_opacity)}}`,
+    `.panel .constel-label,.panel .star-label{fill:${pn.ink}}`,
   ];
 
   mw.opacities.forEach((o, i) =>

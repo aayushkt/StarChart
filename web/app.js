@@ -28,6 +28,8 @@ const state = {
         hidden: new Set() },
   view: { scale: 1, tx: 0, ty: 0 },
   fitted: true,
+  panelsOff: new Set(),
+  allPanels: { middle: [], bottom: [] },
 };
 
 const round = (v, p) => Number(v.toFixed(p));
@@ -53,9 +55,14 @@ function applyLayerVisibility() {
 
 function rerender() {
   const observer = state.observer ? atMinutes(state.observer, state.ui.minutes) : null;
+  const panels = state.config.panels && {
+    ...state.config.panels,
+    middle: (state.allPanels.middle ?? []).filter((n) => !state.panelsOff.has(n)),
+    bottom: (state.allPanels.bottom ?? []).filter((n) => !state.panelsOff.has(n)),
+  };
   const { markup } = buildChart({
-    config: state.config, theme: state.theme, data: state.data, observer,
-    ui: state.ui,
+    config: panels ? { ...state.config, panels } : state.config,
+    theme: state.theme, data: state.data, observer, ui: state.ui,
   });
   const wrap = document.getElementById("chart-wrap");
   wrap.innerHTML = markup;
@@ -67,12 +74,22 @@ function rerender() {
   paint();
 }
 
-const get = (path) => path.split(".").reduce((o, k) => o[k], state.theme);
+/* Control paths carry their own destination. `ui.` is editor-only state,
+ * `config.` is geometry and forces a re-render, anything else is theme and only
+ * needs the stylesheet rewritten. */
+const rootFor = (path) =>
+  path.startsWith("ui.") ? state.ui : path.startsWith("config.") ? state.config : state.theme;
+const keysFor = (path) =>
+  (path.startsWith("ui.") || path.startsWith("config.")) ? path.split(".").slice(1)
+                                                         : path.split(".");
+
+const get = (path) => keysFor(path).reduce((o, k) => (o == null ? o : o[k]), rootFor(path));
 const set = (path, v) => {
-  const keys = path.split(".");
+  const keys = keysFor(path);
   const last = keys.pop();
-  keys.reduce((o, k) => o[k], state.theme)[last] = v;
+  keys.reduce((o, k) => o[k], rootFor(path))[last] = v;
 };
+const isGeometry = (path) => path.startsWith("config.");
 
 /* ---------- panel layout ----------
  *
@@ -131,7 +148,26 @@ const PANEL = [
       { title: "Sun & Moon", layers: ["layer-sun", "layer-moon", "layer-moon-track"] },
       { title: "Your sky", layers: ["layer-horizon"] },
       { title: "Page", layers: ["layer-frame", "layer-title", "layer-rim",
-                                "layer-hemi-labels"] },
+                                "layer-hemi-labels", "layer-panels"] },
+    ],
+  },
+  {
+    title: "Layout", folders: [
+      { title: "The plates", sliders: [
+        { path: "config.layout.radius", label: "Circle radius", min: 60, max: 260, step: 1, unit: "mm" },
+        { path: "config.layout.gap", label: "Gap between them", min: 0, max: 260, step: 1, unit: "mm" },
+        { path: "config.layout.top_offset", label: "Distance below the title", min: 0, max: 220, step: 1, unit: "mm" },
+        { path: "config.layout.overlap_deg", label: "Reach past the equator", min: 0, max: 40, step: 0.5, unit: "°" },
+        { path: "config.layout.ra_zero_deg", label: "Rotation", min: 0, max: 360, step: 1, unit: "°" },
+        { path: "config.layout.hemi_label_deg", label: "Hemisphere label angle", min: -180, max: 180, step: 1, unit: "°" },
+      ] },
+      { title: "The sheet", sliders: [
+        { path: "config.page.width", label: "Page width", min: 200, max: 1200, step: 5, unit: "mm" },
+        { path: "config.page.height", label: "Page height", min: 300, max: 1600, step: 5, unit: "mm" },
+        { path: "config.page.margin", label: "Margin", min: 10, max: 120, step: 1, unit: "mm" },
+        { path: "config.panels.gutter", label: "Gap between diagrams", min: 0, max: 40, step: 1, unit: "mm" },
+      ] },
+      { title: "Diagrams", panels: true },
     ],
   },
   {
@@ -249,9 +285,7 @@ function colorRow(path, label) {
 }
 
 function sliderRow(spec) {
-  const isUI = spec.path.startsWith("ui.");
-  const key = spec.path.slice(3);
-  const read = () => (isUI ? state.ui[key] : get(spec.path));
+  const read = () => get(spec.path);
 
   const wrap = el("div", "slider-row");
   const head = el("div", "slider-head");
@@ -267,10 +301,9 @@ function sliderRow(spec) {
     val.textContent = spec.format ? spec.format(read()) : `${read()}${spec.unit}`;
   };
   input.addEventListener("input", () => {
-    const v = parseFloat(input.value);
-    if (isUI) state.ui[key] = v; else set(spec.path, v);
+    set(spec.path, parseFloat(input.value));
     show();
-    restyle();
+    if (isGeometry(spec.path)) rerender(); else restyle();
   });
   input.dataset.path = spec.path;
   show();
@@ -282,6 +315,9 @@ function checkRow(id, label) {
   const lab = el("label", "check");
   const input = el("input");
   input.type = "checkbox";
+  // Tagged so the layer/toggle invariant can be checked exactly, rather than by
+  // counting checkboxes and hoping none of the others drifted in.
+  input.dataset.layer = id;
   input.checked = !state.ui.hidden.has(id);
   input.addEventListener("change", () => {
     if (input.checked) state.ui.hidden.delete(id); else state.ui.hidden.add(id);
@@ -331,6 +367,39 @@ function folder(title) {
   return { root: d, body };
 }
 
+const PANEL_LABELS = {
+  "planet-sizes": "Comparative sizes",
+  "magnitude-key": "Magnitude key",
+  "solar-system": "Solar system",
+  "solar-eclipse": "Eclipse of the Sun",
+  "lunar-eclipse": "Eclipse of the Moon",
+  "earth-revolution": "Earth's revolution",
+  "moon-illumination": "Illumination of the Moon",
+};
+
+/** One checkbox per diagram. Switching one off re-renders, so the rest of the
+ *  band spreads out to fill the space rather than leaving a hole. */
+function panelRows() {
+  const bands = ["middle", "bottom"];
+  const present = new Set(bands.flatMap((b) => state.config.panels?.[b] ?? []));
+  return Object.entries(PANEL_LABELS)
+    .filter(([name]) => present.has(name) || state.panelsOff.has(name))
+    .map(([name, label]) => {
+      const wrap = el("label", "check");
+      const input = el("input");
+      input.type = "checkbox";
+      input.checked = !state.panelsOff.has(name);
+      input.addEventListener("change", () => {
+        if (input.checked) state.panelsOff.delete(name); else state.panelsOff.add(name);
+        rerender();
+      });
+      wrap.appendChild(input);
+      wrap.appendChild(el("span", "box"));
+      wrap.appendChild(el("span", null, label));
+      return wrap;
+    });
+}
+
 function buildControls() {
   const host = document.getElementById("controls");
   host.textContent = "";
@@ -363,6 +432,7 @@ function buildControls() {
       (spec.sliders ?? [])
         .filter((s) => s.path.startsWith("ui.") || hasPath(s.path))
         .forEach((s) => f.body.appendChild(sliderRow(s)));
+      if (spec.panels) panelRows().forEach((row) => f.body.appendChild(row));
       if (f.body.children.length) sec.body.appendChild(f.root);
     }
     if (sec.body.children.length) host.appendChild(sec.root);
@@ -370,7 +440,7 @@ function buildControls() {
 }
 
 function hasPath(path) {
-  return path.split(".").reduce((o, k) => (o == null ? o : o[k]), state.theme) !== undefined;
+  return get(path) !== undefined;
 }
 
 function deepMerge(target, patch) {
@@ -570,6 +640,10 @@ async function boot() {
   state.data = loaded.data;
   state.observer = loaded.observer;
   state.layers = loaded.layers;
+  state.allPanels = {
+    middle: [...(loaded.config.panels?.middle ?? [])],
+    bottom: [...(loaded.config.panels?.bottom ?? [])],
+  };
   state.ui.labelBucket = loaded.theme.labels.mag_bucket;
   if (state.observer) state.ui.minutes = state.observer.minutes;
 

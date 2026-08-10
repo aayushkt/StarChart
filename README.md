@@ -145,8 +145,17 @@ plate's centre. Where it crosses the horizon curve is where the body rose and
 set. The Moon also carries its month-long path against the stars, which shows
 the roughly five-degree tilt of its orbit against the ecliptic.
 
-Next: the ornamental panels — solar system orbits, eclipse diagrams, Earth's
-revolution, moon illumination, the magnitude key; the planets.
+All seven diagrams from the original are drawn around the plates: comparative
+sizes of the Sun and planets, the magnitude key, the solar system to scale, both
+eclipses, Earth's revolution, and the illumination of the Moon. They are
+generated from real figures rather than traced — the planets are to true
+relative size and true relative orbital distance, and the Moon phases are
+geometric. The eclipse diagrams are schematic in their proportions, because at
+true scale the Sun would be four hundred times further away than the panel is
+wide, but the construction is honest: the Moon is placed so its umbra converges
+exactly on the Earth's surface, which is the fact the panel exists to show.
+
+Next: planets plotted on the plates themselves.
 
 ## Data
 
