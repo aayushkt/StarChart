@@ -438,20 +438,17 @@ const PLATE_COLOURS = [
 
 function selectionPanel(sel) {
   if (sel.kind === "plate") {
-    const at = `config.placement.plates.${sel.name}`;
     return [{
-      title: sel.name === "north" ? "Northern plate" : "Southern plate",
+      title: "The plates",
       open: true,
       folders: [
-        { title: "Position & size", sliders: [
-          { path: `${at}.cx`, label: "Across the sheet", min: 0, max: 1200, step: 1, unit: "mm" },
-          { path: `${at}.cy`, label: "Down the sheet", min: 0, max: 1600, step: 1, unit: "mm" },
-          // Radius stays shared between the plates, as on the original. Per-plate
-          // placement covers position only, so selecting one does not quietly
-          // detach it from the layout sliders.
-          { path: "config.layout.radius", label: "Radius (both)", min: 40, max: 300, step: 1, unit: "mm" },
+        { title: "Position", sliders: [
+          { path: "config.placement.plates.dx", label: "Move across", min: -300, max: 300, step: 1, unit: "mm" },
+          { path: "config.placement.plates.dy", label: "Move down", min: -400, max: 400, step: 1, unit: "mm" },
         ] },
-        { title: "Both plates", sliders: [
+        { title: "Arrangement", sliders: [
+          { path: "config.layout.radius", label: "Radius", min: 40, max: 300, step: 1, unit: "mm" },
+          { path: "config.layout.gap", label: "Gap between them", min: 0, max: 300, step: 1, unit: "mm" },
           { path: "config.layout.overlap_deg", label: "Reach past the equator", min: 0, max: 40, step: 0.5, unit: "°" },
           { path: "config.layout.ra_zero_deg", label: "Rotation", min: 0, max: 360, step: 1, unit: "°" },
           { path: "config.layout.hemi_label_deg", label: "Hemisphere label angle", min: -180, max: 180, step: 1, unit: "°" },
@@ -522,9 +519,7 @@ function selectionPanel(sel) {
 function ensurePlacement(sel) {
   const p = state.config.placement ?? (state.config.placement = {});
   if (sel.kind === "plate") {
-    const hemi = state.hemispheres.find((h) => h.pole === sel.name);
-    p.plates = p.plates ?? {};
-    p.plates[sel.name] = p.plates[sel.name] ?? { cx: hemi.cx, cy: hemi.cy };
+    p.plates = p.plates ?? { dx: 0, dy: 0 };
   } else if (sel.kind === "panel") {
     const entry = state.panelBoxes.find((b) => b.name === sel.name);
     p.panels = p.panels ?? {};
@@ -692,14 +687,17 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 function handleBoxes() {
   const boxes = [];
-  for (const hemi of state.hemispheres ?? []) {
-    // The rim band sits outside the plate radius and moves with it.
-    const r = hemi.radius + (state.theme.plate.scale_band ?? 0);
-    boxes.push({
-      kind: "plate", name: hemi.pole,
-      label: `${hemi.pole === "north" ? "NORTHERN" : "SOUTHERN"} PLATE`,
-      x: hemi.cx - r, y: hemi.cy - r, w: 2 * r, h: 2 * r,
-    });
+  // One box around both plates: they are a single object, and their spacing is
+  // the layout's business rather than something to nudge by hand.
+  const plates = state.hemispheres ?? [];
+  if (plates.length) {
+    const band = state.theme.plate.scale_band ?? 0;
+    const x0 = Math.min(...plates.map((h) => h.cx - h.radius - band));
+    const x1 = Math.max(...plates.map((h) => h.cx + h.radius + band));
+    const y0 = Math.min(...plates.map((h) => h.cy - h.radius - band));
+    const y1 = Math.max(...plates.map((h) => h.cy + h.radius + band));
+    boxes.push({ kind: "plate", name: "plates", label: "THE PLATES",
+                 x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
   }
   for (const { name, box } of state.panelBoxes ?? []) {
     boxes.push({ kind: "panel", name, label: (PANEL_LABELS[name] ?? name).toUpperCase(), ...box });
@@ -761,10 +759,10 @@ function select(handle) {
 function commitMove(handle, dx, dy) {
   const placement = state.config.placement ?? (state.config.placement = {});
   if (handle.kind === "plate") {
-    const hemi = state.hemispheres.find((h) => h.pole === handle.name);
-    if (!hemi) return;
-    placement.plates = placement.plates ?? {};
-    placement.plates[handle.name] = { cx: hemi.cx + dx, cy: hemi.cy + dy };
+    // An offset rather than absolute centres, so the layout sliders keep
+    // working underneath: change the radius and the pair stays where you put it.
+    const at = placement.plates ?? { dx: 0, dy: 0 };
+    placement.plates = { dx: (at.dx ?? 0) + dx, dy: (at.dy ?? 0) + dy };
   } else if (handle.kind === "panel") {
     const entry = state.panelBoxes.find((b) => b.name === handle.name);
     if (!entry) return;
@@ -845,7 +843,7 @@ function initViewport() {
 
   const piecesFor = (handle) => {
     const selector = handle.kind === "plate"
-      ? `[data-plate="${handle.name}"]`
+      ? `[data-plate]`
       : `[data-drag="${handle.kind}:${handle.name}"]`;
     return [
       ...state.svg.querySelectorAll(selector),

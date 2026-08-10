@@ -170,12 +170,15 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
     raZeroDeg: layout.ra_zero_deg,
   });
 
-  const reposition = (hemi, at) => at
-    ? new Hemisphere({ ...hemi, cx: at.cx ?? hemi.cx, cy: at.cy ?? hemi.cy,
-                       radius: at.radius ?? hemi.radius })
+  // The pair moves as one object. Their spacing is the layout's business --
+  // radius, gap and top offset -- and dragging only shifts the whole assembly,
+  // so the two never drift out of register with each other.
+  const shift = placed.plates ?? { dx: 0, dy: 0 };
+  const move = (hemi) => (shift.dx || shift.dy)
+    ? new Hemisphere({ ...hemi, cx: hemi.cx + (shift.dx ?? 0), cy: hemi.cy + (shift.dy ?? 0) })
     : hemi;
-  north = reposition(north, placed.plates?.north);
-  south = reposition(south, placed.plates?.south);
+  north = move(north);
+  south = move(south);
 
   const layers = Object.fromEntries(LAYER_ORDER.map((k) => [k, []]));
   const labelsOn = config.labels?.enabled ?? true;
@@ -183,10 +186,10 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   for (const [hemi, name] of [[north, "NORTHERN HEMISPHERE"], [south, "SOUTHERN HEMISPHERE"]]) {
     const clipId = `clip-${hemi.pole}`;
     defs.push(`<clipPath id="${clipId}">${svg.circle(hemi.cx, hemi.cy, hemi.radius)}</clipPath>`);
-    // Every layer's contribution for this plate carries the same tag, so
-    // dragging moves the whole plate -- rim, stars, labels and all -- while the
-    // layer groups stay intact for the toggles.
-    const tag = `data-plate="${hemi.pole}"`;
+    // Every layer's contribution for either plate carries the same tag, so a
+    // drag moves the pair -- rims, stars, labels and all -- while the layer
+    // groups stay intact for the toggles.
+    const tag = `data-plate="plates"`;
     const clip = (markup) =>
       `<g ${tag} clip-path="url(#${clipId})">${markup}</g>`;
     const loose = (markup) => `<g ${tag}>${markup}</g>`;

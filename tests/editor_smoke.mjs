@@ -257,6 +257,7 @@ Math.abs(view().scale - fitted.scale) < 1e-6 ? ok("double-click refits") : fail(
 
 // --- moving a plate and a diagram
 const plateCx = () => Number(chart().querySelector("#layer-plate circle").getAttribute("cx"));
+const plateRadiusNow = () => chart().querySelector("#layer-plate circle").getAttribute("r");
 const panelX = () => Number(
   chart().querySelector('[data-drag="panel:solar-eclipse"] rect')?.getAttribute("x") ?? NaN);
 
@@ -266,7 +267,7 @@ shift("keydown");
 chart().querySelector("#layer-handles")
   ? ok("shift shows the layout handles") : fail("no handles on shift");
 const handleCount = chart().querySelectorAll(".handle-box").length;
-handleCount === 11 ? ok(`${handleCount} handles (2 plates + 7 diagrams + title + caption)`)
+handleCount === 10 ? ok(`${handleCount} handles (the plates + 7 diagrams + title + caption)`)
                    : fail(`${handleCount} handles`);
 shift("keyup");
 !chart().querySelector("#layer-handles")
@@ -284,20 +285,33 @@ const grabbable = ["planet-sizes", "magnitude-key", "solar-system", "solar-eclip
 grabbable.length === 7 ? ok("all 7 diagrams have a hit area")
                        : fail(`only ${grabbable.length} diagrams grabbable`);
 
-const plateBefore = plateCx();
-const platePieces = chart().querySelectorAll('[data-plate="north"]').length;
-platePieces > 5 ? ok(`north plate spans ${platePieces} layer groups`)
-                : fail("plate not tagged across layers");
+// Both plates are one object: a single handle, and a drag moves the pair
+// without changing their spacing.
+const plateCentres = () => [...chart().querySelectorAll("#layer-plate circle")]
+  .map((c) => [Number(c.getAttribute("cx")), Number(c.getAttribute("cy"))]);
+const spacing = (cs) => Math.hypot(cs[1][0] - cs[0][0], cs[1][1] - cs[0][1]);
 
-drag(handleFor("plate:north"), [500, 300], [560, 340], 2, false);
-Math.abs(plateCx() - plateBefore) < 0.001
+chart().querySelectorAll('[data-handle^="plate:"]').length === 1
+  ? ok("the plates share one handle") : fail("plates still separate");
+const platePieces = chart().querySelectorAll("[data-plate]").length;
+platePieces > 10 ? ok(`the plates span ${platePieces} layer groups`)
+                 : fail("plates not tagged across layers");
+
+const centresBefore = plateCentres();
+const plateBefore = centresBefore[0][0];
+drag(handleFor("plate:plates"), [500, 300], [560, 340], 2, false);
+Math.abs(plateCentres()[0][0] - plateBefore) < 0.001
   ? ok("without shift, dragging pans instead of moving")
-  : fail("plate moved without shift");
+  : fail("plates moved without shift");
 
-drag(handleFor("plate:north"), [500, 300], [560, 340], 2);
-Math.abs(plateCx() - plateBefore) > 1
-  ? ok(`dragging a plate moves it (cx ${plateBefore} to ${plateCx()})`)
-  : fail("plate did not move");
+drag(handleFor("plate:plates"), [500, 300], [560, 340], 2);
+const centresAfter = plateCentres();
+Math.abs(centresAfter[0][0] - plateBefore) > 1
+  ? ok(`dragging moves the plates (cx ${plateBefore} to ${centresAfter[0][0]})`)
+  : fail("plates did not move");
+Math.abs(spacing(centresAfter) - spacing(centresBefore)) < 0.001
+  ? ok("both plates move together, spacing unchanged")
+  : fail(`spacing changed: ${spacing(centresBefore)} to ${spacing(centresAfter)}`);
 
 // Every diagram, not just the first.
 let moved = 0;
