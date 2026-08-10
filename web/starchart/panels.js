@@ -17,6 +17,15 @@ import { circle, fmt, line, path, polylineD, text } from "./svg.js";
 
 const RAD = Math.PI / 180;
 
+/** A diagram's own styling, over the shared defaults.
+ *
+ * Every panel reads its style through this, so overriding one value for one
+ * diagram does not require touching any of the drawing code. */
+export const panelStyle = (theme, name) => ({
+  ...theme.panels,
+  ...(theme.panelStyles?.[name] ?? {}),
+});
+
 /** Equatorial radius in km, semi-major axis in AU. */
 export const PLANETS = [
   { name: "MERCURY", km: 2440, au: 0.3871 },
@@ -36,7 +45,7 @@ const AU_MILLION_MILES = 92.956;
 let clipSeq = 0;
 
 function frame(box, title, theme, body) {
-  const p = theme.panels;
+  const p = theme.panels;   // already resolved for this diagram by drawBand
   // Each panel is clipped to its own box. Several of these diagrams are only
   // legible because something runs off the edge -- the Sun's limb especially --
   // and without a clip that overflow lands on the rest of the poster.
@@ -367,6 +376,9 @@ export function drawBand(names, band, theme, ctx) {
     const slot = { x: band.x + i * (width + gutter), y: band.y, w: width, h: band.h };
     const box = { ...slot, ...(ctx.placed?.[name] ?? {}) };
     ctx.boxes?.push({ name, box });
-    return `<g id="panel-${name}" data-drag="panel:${name}">${draw(box, theme, ctx)}</g>`;
+    // Each diagram draws against its own resolved style, so headings, rules and
+    // palettes are independent without any panel knowing that.
+    const scoped = { ...theme, panels: panelStyle(theme, name) };
+    return `<g id="panel-${name}" data-drag="panel:${name}">${draw(box, scoped, ctx)}</g>`;
   }).join("");
 }

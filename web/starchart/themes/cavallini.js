@@ -12,6 +12,10 @@
 export default {
   name: "cavallini",
 
+  // Per-diagram overrides of `panels`, keyed by diagram name. Empty by default:
+  // the editor fills one in the moment a diagram is styled on its own.
+  panelStyles: {},
+
   page: {
     // Paper is a pale aged sage, not white -- the original has a green cast.
     background: "#e2e6dc",

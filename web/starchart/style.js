@@ -36,6 +36,32 @@ export const LAYERS = [
   ["layer-panels", "Diagrams"],
 ];
 
+/** The rules a diagram can override, as [selector suffix, declarations]. */
+function panelRules(pn, st) {
+  return [
+    [".panel-rule", `stroke:${pn.rule_stroke};stroke-width:${n(pn.rule_width)}`],
+    [".panel-title", `fill:${pn.title_fill};font-size:${n(pn.title_size)}px;` +
+      `letter-spacing:${n(pn.title_tracking)}px`],
+    [".panel-caption", `fill:${pn.ink};font-size:${n(pn.caption_size)}px`],
+    [".panel-note", `fill:${pn.ink};font-size:${n(pn.caption_size)}px`],
+    [".panel-tick", `fill:${pn.ink};font-size:${n(pn.tick_size)}px`],
+    [".panel-sun", `fill:${pn.sun}`],
+    [".panel-earth", `fill:${pn.earth};stroke:${pn.ink};` +
+      `stroke-width:${n(pn.line_width * 0.7)}`],
+    [".panel-moon", `fill:${pn.moon}`],
+    [".panel-moon-dark", `fill:${pn.moon_dark}`],
+    [".panel-planet", `fill:${pn.planet}`],
+    [".panel-orbit", `stroke:${pn.orbit};stroke-width:${n(pn.line_width)}`],
+    [".panel-axis", `stroke:${pn.ink};stroke-width:${n(pn.line_width)}`],
+    [".panel-ray", `stroke:${pn.ink};stroke-width:${n(pn.line_width * 0.8)}`],
+    [".panel-scale", `stroke:${pn.ink};stroke-width:${n(pn.line_width)}`],
+    [".panel-umbra", `fill:${pn.umbra};fill-opacity:${n(pn.umbra_opacity)}`],
+    [".star", `fill:${pn.star_sample}`],
+    [".star-halo", `fill:${pn.star_sample};fill-opacity:${n(st.halo_opacity)}`],
+    [".constel-label,.panel .star-label", `fill:${pn.ink}`],
+  ];
+}
+
 export function stylesheet(theme, ui = {}) {
   const pg = theme.page, pl = theme.plate, st = theme.stars;
   const mw = theme.milkyway, gr = theme.grid, ty = theme.type;
@@ -128,6 +154,16 @@ export function stylesheet(theme, ui = {}) {
     rules.push(`.mag-${i + 1}{r:${n(r * (ui.starScale ?? 1))}px}`);
     rules.push(`.halo-${i + 1}{r:${n(r * (ui.starScale ?? 1) * st.halo_scale)}px}`);
   });
+
+  // A diagram with its own styling gets the same rules again, scoped to its id,
+  // which is enough to win on specificity.
+  for (const [name, override] of Object.entries(theme.panelStyles ?? {})) {
+    if (!override || !Object.keys(override).length) continue;
+    const own = { ...pn, ...override };
+    for (const [suffix, decls] of panelRules(own, st)) {
+      rules.push(`#panel-${name} ${suffix}{${decls}}`);
+    }
+  }
 
   for (let k = (ui.labelBucket ?? lb.mag_bucket) + 1; k < BUCKET_COUNT; k++) {
     rules.push(`.lbl-b${k}{display:none}`);

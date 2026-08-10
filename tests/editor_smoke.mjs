@@ -349,6 +349,49 @@ for (const name of ["title", "caption"]) {
     ? ok(`the ${name} can be dragged`) : fail(`${name} did not move`);
 }
 
+// --- corner grips resize, aspect locked, anchored at the opposite corner
+const gripFor = (spec) => chart().querySelector(`[data-grip="${spec}"]`);
+chart().querySelectorAll("[data-grip]").length === 10
+  ? ok("every handle has a resize grip") : fail("grips missing");
+
+const panelBox = () => {
+  const r = chart().querySelector('[data-handle="panel:earth-revolution"] rect');
+  return { x: +r.getAttribute("x"), y: +r.getAttribute("y"),
+           w: +r.getAttribute("width"), h: +r.getAttribute("height") };
+};
+const boxBefore = panelBox();
+drag(gripFor("panel:earth-revolution"), [500, 300], [560, 340], 20);
+const boxAfter = panelBox();
+boxAfter.w > boxBefore.w * 1.05
+  ? ok(`grip scales a diagram (${boxBefore.w.toFixed(0)} to ${boxAfter.w.toFixed(0)} mm wide)`)
+  : fail("diagram did not scale");
+Math.abs(boxAfter.w / boxBefore.w - boxAfter.h / boxBefore.h) < 0.02
+  ? ok("aspect ratio is preserved") : fail("aspect changed");
+Math.abs(boxAfter.x - boxBefore.x) < 0.01 && Math.abs(boxAfter.y - boxBefore.y) < 0.01
+  ? ok("the opposite corner stays put") : fail("box drifted while scaling");
+
+const plateR = () => Number(chart().querySelector("#layer-plate circle").getAttribute("r"));
+const rBefore = plateR();
+const cornerBefore = Number(
+  chart().querySelector('[data-handle="plate:plates"] rect').getAttribute("x"));
+drag(gripFor("plate:plates"), [500, 300], [540, 330], 21);
+plateR() > rBefore * 1.02
+  ? ok(`grip scales the plates (r ${rBefore} to ${plateR()})`) : fail("plates did not scale");
+Math.abs(Number(chart().querySelector('[data-handle="plate:plates"] rect')
+  .getAttribute("x")) - cornerBefore) < 0.5
+  ? ok("the plates scale about their top-left corner") : fail("plates drifted while scaling");
+
+const titleSize = () => Number(
+  /font-size:([\d.]+)px/.exec(
+    /\.title\{[^}]*\}/.exec(styleText())[0])[1]);
+const sizeBefore = titleSize();
+drag(gripFor("text:title"), [400, 200], [440, 220], 22);
+titleSize() > sizeBefore
+  ? ok(`grip scales the title type (${sizeBefore} to ${titleSize()} mm)`)
+  : fail("title type did not scale");
+
+d.querySelector("#reset-layout").click();
+
 // Shift-clicking selects, and the sidebar narrows to what is selected.
 const sectionTitles = () =>
   [...d.querySelectorAll(".section > summary")].map((n) => n.textContent);
@@ -362,6 +405,37 @@ selectedTitles.length === 1 && selectedTitles[0] === "Eclipse of the Moon"
   : fail(`sidebar shows ${JSON.stringify(selectedTitles)}`);
 chart().querySelector('[data-handle="panel:lunar-eclipse"].handle-selected')
   ? ok("the selected outline is emphasised") : fail("no selected styling");
+
+// --- a diagram's styling is its own
+const sunOf = (name) => {
+  const scoped = new RegExp(`#panel-${name} \\.panel-sun\\{fill:([^}]+)\\}`).exec(styleText());
+  return scoped ? scoped[1] : /\.panel-sun\{fill:([^}]+)\}/.exec(styleText())[1];
+};
+const sunSwatch = [...d.querySelectorAll("input.swatch")]
+  .find((i) => i.dataset.path === "panelStyles.lunar-eclipse.sun");
+sunSwatch ? ok("the diagram has its own palette") : fail("no per-diagram palette");
+const otherBefore = sunOf("solar-eclipse");
+sunSwatch.value = "#ff0000";
+sunSwatch.dispatchEvent(new window.Event("input"));
+sunOf("lunar-eclipse") === "#ff0000"
+  ? ok("restyling one diagram takes effect") : fail("per-diagram colour ignored");
+sunOf("solar-eclipse") === otherBefore
+  ? ok("the other diagrams are unaffected") : fail("per-diagram colour leaked");
+
+// --- the heading rule is toggleable per diagram
+const ruleCount = () => chart().querySelectorAll("#panel-lunar-eclipse .panel-rule").length;
+const ruleToggle = [...d.querySelectorAll(".check")]
+  .find((c) => c.textContent.trim() === "Draw the rule")?.querySelector("input");
+ruleToggle ? ok("the heading rule has a toggle") : fail("no rule toggle");
+const rulesBefore = ruleCount();
+ruleToggle.checked = false;
+ruleToggle.dispatchEvent(new window.Event("change"));
+ruleCount() < rulesBefore
+  ? ok("switching the rule off removes it") : fail("rule still drawn");
+chart().querySelectorAll("#panel-solar-eclipse .panel-rule").length > 0
+  ? ok("other diagrams keep their rule") : fail("rule toggle leaked");
+ruleToggle.checked = true;
+ruleToggle.dispatchEvent(new window.Event("change"));
 
 d.querySelector(".btn.back").click();
 const restoredTitles = sectionTitles();

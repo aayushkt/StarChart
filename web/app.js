@@ -467,6 +467,7 @@ function selectionPanel(sel) {
 
   if (sel.kind === "panel") {
     const at = `config.placement.panels.${sel.name}`;
+    const own = `panelStyles.${sel.name}`;
     return [{
       title: PANEL_LABELS[sel.name] ?? sel.name,
       open: true,
@@ -477,16 +478,33 @@ function selectionPanel(sel) {
           { path: `${at}.w`, label: "Width", min: 30, max: 600, step: 1, unit: "mm" },
           { path: `${at}.h`, label: "Height", min: 20, max: 400, step: 1, unit: "mm" },
         ] },
-        { title: "This diagram", diagram: sel.name },
-        { title: "All diagrams", sliders: [
-          { path: "panels.title_size", label: "Heading size", min: 1.5, max: 8, step: 0.1, unit: "mm" },
-          { path: "panels.caption_size", label: "Caption size", min: 1.2, max: 6, step: 0.1, unit: "mm" },
-          { path: "panels.line_width", label: "Line weight", min: 0.1, max: 1.5, step: 0.05, unit: "mm" },
-        ], colors: [
-          ["panels.ink", "Ink"],
-          ["panels.sun", "Sun"],
-          ["panels.earth", "Earth"],
-          ["panels.orbit", "Orbits"],
+        { title: "Show", diagram: sel.name },
+        { title: "Heading", sliders: [
+          { path: `${own}.title_size`, label: "Size", min: 1.5, max: 10, step: 0.1, unit: "mm" },
+          { path: `${own}.title_tracking`, label: "Tracking", min: 0, max: 6, step: 0.05, unit: "mm" },
+          { path: `${own}.title_gap`, label: "Gap above", min: 0, max: 16, step: 0.5, unit: "mm" },
+          { path: `${own}.title_space`, label: "Gap below", min: 0, max: 20, step: 0.5, unit: "mm" },
+        ], colors: [[`${own}.title_fill`, "Colour"]] },
+        { title: "Rule above the heading", rule: sel.name, sliders: [
+          { path: `${own}.rule_width`, label: "Weight", min: 0.1, max: 3, step: 0.05, unit: "mm" },
+        ], colors: [[`${own}.rule_stroke`, "Colour"]] },
+        { title: "Captions", sliders: [
+          { path: `${own}.caption_size`, label: "Caption size", min: 1.2, max: 8, step: 0.1, unit: "mm" },
+          { path: `${own}.tick_size`, label: "Small label size", min: 1.0, max: 6, step: 0.1, unit: "mm" },
+        ] },
+        { title: "Palette", colors: [
+          [`${own}.ink`, "Ink"],
+          [`${own}.sun`, "Sun"],
+          [`${own}.earth`, "Earth"],
+          [`${own}.moon`, "Moon, lit"],
+          [`${own}.moon_dark`, "Moon, dark"],
+          [`${own}.planet`, "Planets"],
+          [`${own}.orbit`, "Orbits"],
+          [`${own}.umbra`, "Shadow"],
+          [`${own}.star_sample`, "Star samples"],
+        ], sliders: [
+          { path: `${own}.line_width`, label: "Line weight", min: 0.05, max: 2, step: 0.05, unit: "mm" },
+          { path: `${own}.umbra_opacity`, label: "Shadow strength", min: 0, max: 1, step: 0.02, unit: "" },
         ] },
       ],
     }];
@@ -524,6 +542,10 @@ function ensurePlacement(sel) {
     const entry = state.panelBoxes.find((b) => b.name === sel.name);
     p.panels = p.panels ?? {};
     if (entry) p.panels[sel.name] = p.panels[sel.name] ?? { ...entry.box };
+    // Seeded from the shared defaults so every control has a value to bind to.
+    // From here the diagram is styled on its own and no longer follows them.
+    const styles = state.theme.panelStyles ?? (state.theme.panelStyles = {});
+    styles[sel.name] = styles[sel.name] ?? { ...state.theme.panels };
   } else {
     const entry = state.textBoxes.find((b) => b.name === sel.name);
     p.texts = p.texts ?? {};
@@ -543,6 +565,22 @@ function diagramRow(name) {
   wrap.appendChild(input);
   wrap.appendChild(el("span", "box"));
   wrap.appendChild(el("span", null, "Show this diagram"));
+  return wrap;
+}
+
+function ruleRow(name) {
+  const path = `panelStyles.${name}.rule`;
+  const wrap = el("label", "check");
+  const input = el("input");
+  input.type = "checkbox";
+  input.checked = Boolean(get(path));
+  input.addEventListener("change", () => {
+    set(path, input.checked);
+    rerender();
+  });
+  wrap.appendChild(input);
+  wrap.appendChild(el("span", "box"));
+  wrap.appendChild(el("span", null, "Draw the rule"));
   return wrap;
 }
 
@@ -589,6 +627,7 @@ function buildControls() {
         .forEach((s) => f.body.appendChild(sliderRow(s)));
       if (spec.panels) panelRows().forEach((row) => f.body.appendChild(row));
       if (spec.diagram) f.body.appendChild(diagramRow(spec.diagram));
+      if (spec.rule) f.body.appendChild(ruleRow(spec.rule));
       if (f.body.children.length) sec.body.appendChild(f.root);
     }
     if (sec.body.children.length) host.appendChild(sec.root);
@@ -742,6 +781,18 @@ function drawHandles() {
     label.textContent = box.label;
     group.appendChild(label);
 
+    // Sized in screen pixels rather than millimetres, so the grip stays the
+    // same size to the hand at any zoom.
+    const grip = 9 / (state.view.scale || 1);
+    const knob = document.createElementNS(SVG_NS, "rect");
+    knob.setAttribute("x", (box.x + box.w - grip / 2).toFixed(2));
+    knob.setAttribute("y", (box.y + box.h - grip / 2).toFixed(2));
+    knob.setAttribute("width", grip.toFixed(2));
+    knob.setAttribute("height", grip.toFixed(2));
+    knob.setAttribute("class", "handle-grip");
+    knob.setAttribute("data-grip", `${box.kind}:${box.name}`);
+    group.appendChild(knob);
+
     g.appendChild(group);
   }
   state.svg.appendChild(g);
@@ -753,6 +804,40 @@ function select(handle) {
   state.selection = handle ?? null;
   if (!same) buildControls();
   drawHandles();
+}
+
+/** Scale an object about its top-left corner, then re-render from the config. */
+function commitResize(handle, k, box) {
+  if (!box || Math.abs(k - 1) < 1e-4) return;
+  const placement = state.config.placement ?? (state.config.placement = {});
+
+  if (handle.kind === "plate") {
+    // Radius and gap together, so the pair scales as one assembly. The top of
+    // the bounding box does not depend on the radius, but its left edge does,
+    // so only the horizontal offset needs correcting to hold the corner still.
+    const layout = state.config.layout;
+    const before = layout.radius;
+    layout.radius = Math.max(20, before * k);
+    layout.gap = Math.max(0, layout.gap * k);
+    const at = placement.plates ?? { dx: 0, dy: 0 };
+    placement.plates = { dx: (at.dx ?? 0) + (layout.radius - before), dy: at.dy ?? 0 };
+  } else if (handle.kind === "panel") {
+    const entry = state.panelBoxes.find((b) => b.name === handle.name);
+    if (!entry) return;
+    placement.panels = placement.panels ?? {};
+    placement.panels[handle.name] = {
+      ...entry.box, w: Math.max(20, entry.box.w * k), h: Math.max(12, entry.box.h * k),
+    };
+  } else {
+    // Text has no box of its own -- scaling it means scaling the type.
+    const path = handle.name === "title" ? "type.title_size" : "horizon.caption_size";
+    set(path, Math.max(1.5, get(path) * k));
+    if (handle.name === "title") {
+      set("type.title_tracking", Math.max(0, get("type.title_tracking") * k));
+    }
+  }
+  buildControls();
+  rerender();
 }
 
 /** Write a finished drag into the config, then re-render from it. */
@@ -852,21 +937,31 @@ function initViewport() {
     ];
   };
 
+  const gripFor = (target) => {
+    const knob = target.closest?.("[data-grip]");
+    if (!knob) return null;
+    const [kind, name] = knob.dataset.grip.split(":");
+    return { kind, name };
+  };
+
   el.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
     // Layout editing is deliberately modal. Without it, every drag near a plate
     // is a coin toss between moving the poster and moving the view, and the
     // grabbable regions are invisible.
-    const handle = event.shiftKey ? handleFor(event.target) : null;
+    const grip = event.shiftKey ? gripFor(event.target) : null;
+    const handle = grip ?? (event.shiftKey ? handleFor(event.target) : null);
     // Shift-clicking selects, whether or not a drag follows.
     if (event.shiftKey) select(handle);
     pointer = {
       id: event.pointerId, x: event.clientX, y: event.clientY,
-      dx: 0, dy: 0, handle,
+      dx: 0, dy: 0, handle, resizing: Boolean(grip),
+      box: handle ? handleBoxes().find(
+        (b) => b.kind === handle.kind && b.name === handle.name) : null,
       pieces: handle ? piecesFor(handle) : [],
     };
     el.setPointerCapture(event.pointerId);
-    el.classList.add(handle ? "moving" : "dragging");
+    el.classList.add(grip ? "resizing" : handle ? "moving" : "dragging");
   });
 
   el.addEventListener("pointermove", (event) => {
@@ -885,17 +980,29 @@ function initViewport() {
     pointer.dy += dy / state.view.scale;
     pointer.x = event.clientX;
     pointer.y = event.clientY;
+    if (pointer.resizing) {
+      // Aspect is locked, so one factor from both axes. Anchored at the box's
+      // top-left, which is the corner opposite the grip.
+      const b = pointer.box;
+      const k = Math.max(0.2, 1 + (pointer.dx / b.w + pointer.dy / b.h) / 2);
+      pointer.scale = k;
+      const t = `translate(${b.x.toFixed(3)} ${b.y.toFixed(3)}) scale(${k.toFixed(4)}) ` +
+                `translate(${(-b.x).toFixed(3)} ${(-b.y).toFixed(3)})`;
+      for (const piece of pointer.pieces) piece.setAttribute("transform", t);
+      return;
+    }
     const shift = `translate(${pointer.dx.toFixed(3)} ${pointer.dy.toFixed(3)})`;
     for (const piece of pointer.pieces) piece.setAttribute("transform", shift);
   });
 
   const release = (event) => {
     if (!pointer || event.pointerId !== pointer.id) return;
-    const { handle, dx, dy } = pointer;
+    const { handle, dx, dy, resizing, scale, box } = pointer;
     pointer = null;
     el.classList.remove("dragging", "moving");
     if (!handle || (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01)) return;
-    commitMove(handle, dx, dy);
+    if (resizing) commitResize(handle, scale ?? 1, box);
+    else commitMove(handle, dx, dy);
   };
   el.addEventListener("pointerup", release);
   el.addEventListener("pointercancel", release);
