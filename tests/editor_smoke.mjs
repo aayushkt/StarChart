@@ -275,6 +275,32 @@ shift("keyup");
 
 const handleFor = (spec) => chart().querySelector(`[data-handle="${spec}"]`);
 
+/* Selection is geometric now, so a test click has to land inside the target's
+ * box. Convert chart millimetres to client pixels through the stage transform. */
+const toClient = (x, y) => {
+  const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/
+    .exec(d.querySelector("#chart-wrap").style.transform);
+  const [tx, ty, k] = [+m[1], +m[2], +m[3]];
+  return [x * k + tx + STAGE.x, y * k + ty + STAGE.y];
+};
+const boxOf = (spec) => {
+  const r = chart().querySelector(`[data-handle="${spec}"] rect`);
+  return { x: +r.getAttribute("x"), y: +r.getAttribute("y"),
+           w: +r.getAttribute("width"), h: +r.getAttribute("height") };
+};
+/** A point inside an object, biased away from its corner grip. */
+const insideOf = (spec) => {
+  const b = boxOf(spec);
+  return toClient(b.x + b.w * 0.4, b.y + b.h * 0.4);
+};
+/** The middle of an object's resize grip. */
+const gripAt = (spec) => {
+  const b = boxOf(spec);
+  return toClient(b.x + b.w, b.y + b.h);
+};
+const nudge = ([x, y], dx, dy) => [x + dx, y + dy];
+const gripFor = (spec) => chart().querySelector(`[data-grip="${spec}"]`);
+
 // Every diagram must be grabbable, not just the one whose artwork happens to
 // cover its box. The handle is the hit area precisely because the diagrams are
 // mostly empty space.
@@ -299,12 +325,13 @@ platePieces > 10 ? ok(`the plates span ${platePieces} layer groups`)
 
 const centresBefore = plateCentres();
 const plateBefore = centresBefore[0][0];
-drag(handleFor("plate:plates"), [500, 300], [560, 340], 2, false);
+const platePoint = insideOf("plate:plates");
+drag(handleFor("plate:plates"), platePoint, nudge(platePoint, 60, 40), 2, false);
 Math.abs(plateCentres()[0][0] - plateBefore) < 0.001
   ? ok("without shift, dragging pans instead of moving")
   : fail("plates moved without shift");
 
-drag(handleFor("plate:plates"), [500, 300], [560, 340], 2);
+drag(handleFor("plate:plates"), platePoint, nudge(platePoint, 60, 40), 2);
 const centresAfter = plateCentres();
 Math.abs(centresAfter[0][0] - plateBefore) > 1
   ? ok(`dragging moves the plates (cx ${plateBefore} to ${centresAfter[0][0]})`)
@@ -318,7 +345,8 @@ let moved = 0;
 for (const name of grabbable) {
   const before = Number(
     chart().querySelector(`[data-handle="panel:${name}"] rect`).getAttribute("x"));
-  drag(handleFor(`panel:${name}`), [500, 300], [530, 320], 4);
+  const at = insideOf(`panel:${name}`);
+  drag(handleFor(`panel:${name}`), at, nudge(at, 30, 20), 4);
   const after = Number(
     chart().querySelector(`[data-handle="panel:${name}"] rect`).getAttribute("x"));
   if (Math.abs(after - before) > 1) moved++;
@@ -330,10 +358,12 @@ const outlineX = () => Number(
   chart().querySelector('[data-handle="panel:solar-system"] rect').getAttribute("x"));
 const beforeOutline = outlineX();
 const target = handleFor("panel:solar-system");
+const solarPoint = insideOf("panel:solar-system");
 target.dispatchEvent(new window.PointerEvent("pointerdown",
-  { button: 0, pointerId: 9, clientX: 500, clientY: 300, bubbles: true, shiftKey: true }));
+  { button: 0, pointerId: 9, clientX: solarPoint[0], clientY: solarPoint[1],
+    bubbles: true, shiftKey: true }));
 stage.dispatchEvent(new window.PointerEvent("pointermove",
-  { pointerId: 9, clientX: 560, clientY: 300, bubbles: true }));
+  { pointerId: 9, clientX: solarPoint[0] + 60, clientY: solarPoint[1], bubbles: true }));
 const dragging = chart()
   .querySelector('[data-handle="panel:solar-system"]').getAttribute("transform");
 dragging && /translate/.test(dragging)
@@ -344,13 +374,57 @@ stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 9, bubbles
 for (const name of ["title", "caption"]) {
   const sel = `[data-handle="text:${name}"]`;
   const before = Number(chart().querySelector(`${sel} rect`).getAttribute("x"));
-  drag(handleFor(`text:${name}`), [400, 200], [440, 230], 10);
+  const at = insideOf(`text:${name}`);
+  drag(handleFor(`text:${name}`), at, nudge(at, 40, 30), 10);
   Math.abs(Number(chart().querySelector(`${sel} rect`).getAttribute("x")) - before) > 1
     ? ok(`the ${name} can be dragged`) : fail(`${name} did not move`);
 }
 
+// --- scaling one thing leaves everything else alone
+{
+  const otherBefore = boxOf("panel:moon-illumination");
+  const pGrip0 = gripAt("panel:solar-system");
+  drag(gripFor("panel:solar-system"), pGrip0, nudge(pGrip0, 50, 30), 30);
+  const otherAfter = boxOf("panel:moon-illumination");
+  Math.abs(otherAfter.x - otherBefore.x) < 0.01 && Math.abs(otherAfter.w - otherBefore.w) < 0.01
+    ? ok("scaling a diagram leaves the others where they are")
+    : fail(`neighbour moved: ${JSON.stringify(otherBefore)} -> ${JSON.stringify(otherAfter)}`);
+
+  // The bands hang off the lower plate, so this is the case that used to drag
+  // every diagram along with it.
+  const diagramBefore = boxOf("panel:solar-eclipse");
+  const plateGrip = gripAt("plate:plates");
+  drag(gripFor("plate:plates"), plateGrip, nudge(plateGrip, -40, -30), 31);
+  const diagramAfter = boxOf("panel:solar-eclipse");
+  Math.abs(diagramAfter.x - diagramBefore.x) < 0.01 &&
+  Math.abs(diagramAfter.y - diagramBefore.y) < 0.01
+    ? ok("scaling the plates leaves the diagrams where they are")
+    : fail(`diagram moved: ${JSON.stringify(diagramBefore)} -> ${JSON.stringify(diagramAfter)}`);
+
+  d.querySelector("#reset-layout").click();
+}
+
+// --- overlapping objects: the smallest box wins, not the topmost
+{
+  const plates = boxOf("plate:plates");
+  // Put a diagram inside the plates' box so the two genuinely overlap.
+  const at = insideOf("panel:magnitude-key");
+  drag(handleFor("panel:magnitude-key"), at,
+       toClient(plates.x + plates.w * 0.5, plates.y + plates.h * 0.5), 40);
+  const overlap = boxOf("panel:magnitude-key");
+  const point = toClient(overlap.x + overlap.w * 0.5, overlap.y + overlap.h * 0.5);
+  handleFor("plate:plates").dispatchEvent(new window.PointerEvent("pointerdown",
+    { button: 0, pointerId: 41, clientX: point[0], clientY: point[1],
+      bubbles: true, shiftKey: true }));
+  stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 41, bubbles: true }));
+  const titles = [...d.querySelectorAll(".section > summary")].map((n) => n.textContent);
+  titles[0] === "Magnitude key"
+    ? ok("clicking overlapping objects selects the smaller one")
+    : fail(`selected ${JSON.stringify(titles)} instead of the diagram`);
+  d.querySelector("#reset-layout").click();
+}
+
 // --- corner grips resize, aspect locked, anchored at the opposite corner
-const gripFor = (spec) => chart().querySelector(`[data-grip="${spec}"]`);
 chart().querySelectorAll("[data-grip]").length === 10
   ? ok("every handle has a resize grip") : fail("grips missing");
 
@@ -360,7 +434,8 @@ const panelBox = () => {
            w: +r.getAttribute("width"), h: +r.getAttribute("height") };
 };
 const boxBefore = panelBox();
-drag(gripFor("panel:earth-revolution"), [500, 300], [560, 340], 20);
+const eGrip = gripAt("panel:earth-revolution");
+drag(gripFor("panel:earth-revolution"), eGrip, nudge(eGrip, 60, 40), 20);
 const boxAfter = panelBox();
 boxAfter.w > boxBefore.w * 1.05
   ? ok(`grip scales a diagram (${boxBefore.w.toFixed(0)} to ${boxAfter.w.toFixed(0)} mm wide)`)
@@ -374,7 +449,8 @@ const plateR = () => Number(chart().querySelector("#layer-plate circle").getAttr
 const rBefore = plateR();
 const cornerBefore = Number(
   chart().querySelector('[data-handle="plate:plates"] rect').getAttribute("x"));
-drag(gripFor("plate:plates"), [500, 300], [540, 330], 21);
+const pGrip = gripAt("plate:plates");
+drag(gripFor("plate:plates"), pGrip, nudge(pGrip, 40, 30), 21);
 plateR() > rBefore * 1.02
   ? ok(`grip scales the plates (r ${rBefore} to ${plateR()})`) : fail("plates did not scale");
 Math.abs(Number(chart().querySelector('[data-handle="plate:plates"] rect')
@@ -385,7 +461,8 @@ const titleSize = () => Number(
   /font-size:([\d.]+)px/.exec(
     /\.title\{[^}]*\}/.exec(styleText())[0])[1]);
 const sizeBefore = titleSize();
-drag(gripFor("text:title"), [400, 200], [440, 220], 22);
+const tGrip = gripAt("text:title");
+drag(gripFor("text:title"), tGrip, nudge(tGrip, 40, 20), 22);
 titleSize() > sizeBefore
   ? ok(`grip scales the title type (${sizeBefore} to ${titleSize()} mm)`)
   : fail("title type did not scale");
@@ -396,8 +473,10 @@ d.querySelector("#reset-layout").click();
 const sectionTitles = () =>
   [...d.querySelectorAll(".section > summary")].map((n) => n.textContent);
 const clickTarget = handleFor("panel:lunar-eclipse");
+const lunarPoint = insideOf("panel:lunar-eclipse");
 clickTarget.dispatchEvent(new window.PointerEvent("pointerdown",
-  { button: 0, pointerId: 11, clientX: 500, clientY: 300, bubbles: true, shiftKey: true }));
+  { button: 0, pointerId: 11, clientX: lunarPoint[0], clientY: lunarPoint[1],
+    bubbles: true, shiftKey: true }));
 stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 11, bubbles: true }));
 const selectedTitles = sectionTitles();
 selectedTitles.length === 1 && selectedTitles[0] === "Eclipse of the Moon"

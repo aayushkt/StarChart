@@ -313,6 +313,9 @@ function sliderRow(spec) {
     val.textContent = spec.format ? spec.format(read()) : `${read()}${spec.unit}`;
   };
   input.addEventListener("input", () => {
+    // Touching the layout would otherwise shift every diagram that is still
+    // following the computed arrangement.
+    if (isGeometry(spec.path) && !spec.path.startsWith("config.placement")) freezeDerived();
     set(spec.path, parseFloat(input.value));
     show();
     if (isGeometry(spec.path)) rerender(); else restyle();
@@ -806,10 +809,31 @@ function select(handle) {
   drawHandles();
 }
 
+/** Pin every object that is still following the computed arrangement.
+ *
+ * Without this, changing the plates -- moving them, scaling them, or touching a
+ * layout slider -- drags the diagrams along with them, because the bands are
+ * derived from where the lower plate ends. Once anything is arranged by hand,
+ * everything holds still and only what is grabbed moves. Overlap is fine.
+ */
+function freezeDerived() {
+  const p = state.config.placement ?? (state.config.placement = {});
+  p.plates = p.plates ?? { dx: 0, dy: 0 };
+  p.panels = p.panels ?? {};
+  for (const { name, box } of state.panelBoxes ?? []) {
+    p.panels[name] = p.panels[name] ?? { ...box };
+  }
+  p.texts = p.texts ?? {};
+  for (const t of state.textBoxes ?? []) {
+    p.texts[t.name] = p.texts[t.name] ?? { x: t.x, y: t.y };
+  }
+}
+
 /** Scale an object about its top-left corner, then re-render from the config. */
 function commitResize(handle, k, box) {
   if (!box || Math.abs(k - 1) < 1e-4) return;
-  const placement = state.config.placement ?? (state.config.placement = {});
+  freezeDerived();
+  const placement = state.config.placement;
 
   if (handle.kind === "plate") {
     // Radius and gap together, so the pair scales as one assembly. The top of
@@ -842,7 +866,8 @@ function commitResize(handle, k, box) {
 
 /** Write a finished drag into the config, then re-render from it. */
 function commitMove(handle, dx, dy) {
-  const placement = state.config.placement ?? (state.config.placement = {});
+  freezeDerived();
+  const placement = state.config.placement;
   if (handle.kind === "plate") {
     // An offset rather than absolute centres, so the layout sliders keep
     // working underneath: change the radius and the pair stays where you put it.
@@ -917,13 +942,27 @@ function initViewport() {
    * re-rendering on every pointermove would be a 35 ms frame. */
   let pointer = null;
 
-  // The overlay handle is what gets hit, since it is a solid rect over the
-  // whole object rather than the object's own scattered shapes.
-  const handleFor = (target) => {
-    const hit = target.closest?.("[data-handle]");
-    if (!hit) return null;
-    const [kind, name] = hit.dataset.handle.split(":");
-    return { kind, name };
+  /* Which object a click lands on is decided geometrically rather than by what
+   * the browser happens to hit. Relying on hit-testing means the topmost shape
+   * wins, and "topmost" is just paint order -- the text handles are drawn last,
+   * so they would beat a diagram they happen to sit over regardless of size.
+   * Smallest-box-wins is what makes overlapping objects reachable: the big
+   * thing underneath is still clickable everywhere the small one is not. */
+  const chartPoint = (clientX, clientY) => {
+    const box = el.getBoundingClientRect();
+    return [
+      (clientX - box.left - state.view.tx) / state.view.scale,
+      (clientY - box.top - state.view.ty) / state.view.scale,
+    ];
+  };
+
+  const handleFor = (target, clientX, clientY) => {
+    const [x, y] = chartPoint(clientX, clientY);
+    const hits = handleBoxes().filter(
+      (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    if (!hits.length) return null;
+    hits.sort((a, b) => a.w * a.h - b.w * b.h);
+    return { kind: hits[0].kind, name: hits[0].name };
   };
 
   const piecesFor = (handle) => {
@@ -950,7 +989,8 @@ function initViewport() {
     // is a coin toss between moving the poster and moving the view, and the
     // grabbable regions are invisible.
     const grip = event.shiftKey ? gripFor(event.target) : null;
-    const handle = grip ?? (event.shiftKey ? handleFor(event.target) : null);
+    const handle = grip ??
+      (event.shiftKey ? handleFor(event.target, event.clientX, event.clientY) : null);
     // Shift-clicking selects, whether or not a drag follows.
     if (event.shiftKey) select(handle);
     pointer = {
