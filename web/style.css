@@ -200,6 +200,13 @@ input[type="range"]::-moz-range-thumb {
   touch-action: none;
 }
 .stage-scroll.dragging { cursor: grabbing; }
+.stage-scroll.moving { cursor: grabbing; }
+
+/* Anything that can be picked up says so. The plates are spread across every
+   layer group, so the rule has to reach their pieces individually. */
+.chart-wrap [data-plate],
+.chart-wrap [data-drag] { cursor: move; }
+.chart-wrap [data-drag]:hover { opacity: 0.86; }
 
 .chart-wrap {
   position: absolute;

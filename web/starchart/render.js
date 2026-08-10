@@ -10,7 +10,7 @@ import { Placer, bucketFor, placeConstellationLabels, placeStarLabels } from "./
 import { arcText } from "./lettering.js";
 import { caption, drawOverlay } from "./overlay.js";
 import { drawBand } from "./panels.js";
-import { NORTH, stackedPair } from "./projection.js";
+import { Hemisphere, NORTH, stackedPair } from "./projection.js";
 import { drawColures, drawEcliptic, drawSmallCircles } from "./reference.js";
 import { LAYERS, stylesheet } from "./style.js";
 import * as svg from "./svg.js";
@@ -155,7 +155,7 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   body.push(`<g id="layer-title">` +
     svg.text(page.width / 2, page.margin + 34, config.title, { class_: "title" }) + `</g>`);
 
-  const [north, south] = stackedPair({
+  let [north, south] = stackedPair({
     width: page.width,
     topY: page.margin + layout.top_offset,
     radius: layout.radius,
@@ -164,15 +164,31 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
     raZeroDeg: layout.ra_zero_deg,
   });
 
+  // Anything the reader has dragged wins over the computed arrangement. The
+  // default stays derived so the sliders keep working until something is moved.
+  const placed = config.placement ?? {};
+  const reposition = (hemi, at) => at
+    ? new Hemisphere({ ...hemi, cx: at.cx ?? hemi.cx, cy: at.cy ?? hemi.cy })
+    : hemi;
+  north = reposition(north, placed.plates?.north);
+  south = reposition(south, placed.plates?.south);
+
   const layers = Object.fromEntries(LAYER_ORDER.map((k) => [k, []]));
   const labelsOn = config.labels?.enabled ?? true;
 
   for (const [hemi, name] of [[north, "NORTHERN HEMISPHERE"], [south, "SOUTHERN HEMISPHERE"]]) {
     const clipId = `clip-${hemi.pole}`;
     defs.push(`<clipPath id="${clipId}">${svg.circle(hemi.cx, hemi.cy, hemi.radius)}</clipPath>`);
-    const clip = (markup) => `<g clip-path="url(#${clipId})">${markup}</g>`;
+    // Every layer's contribution for this plate carries the same tag, so
+    // dragging moves the whole plate -- rim, stars, labels and all -- while the
+    // layer groups stay intact for the toggles.
+    const tag = `data-plate="${hemi.pole}"`;
+    const clip = (markup) =>
+      `<g ${tag} clip-path="url(#${clipId})">${markup}</g>`;
+    const loose = (markup) => `<g ${tag}>${markup}</g>`;
 
-    layers["layer-plate"].push(svg.circle(hemi.cx, hemi.cy, hemi.radius, { class_: "plate-bg" }));
+    layers["layer-plate"].push(loose(svg.circle(hemi.cx, hemi.cy, hemi.radius,
+      { class_: "plate-bg" })));
     layers["layer-milkyway"].push(clip(drawMilkyWay(hemi, data)));
     layers["layer-grid"].push(clip(drawGrid(hemi, theme)));
     layers["layer-tropics"].push(clip(drawSmallCircles(hemi, theme, labelsOn)));
@@ -203,14 +219,15 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
 
     if (observer) layers["layer-horizon"].push(clip(drawOverlay(hemi, observer, theme)));
 
-    layers["layer-rim"].push(drawRim(hemi, theme));
-    layers["layer-hemi-labels"].push(arcText(
+    layers["layer-rim"].push(loose(drawRim(hemi, theme)));
+    layers["layer-hemi-labels"].push(loose(arcText(
       hemi.cx, hemi.cy,
       hemi.radius + theme.plate.scale_band + ty.hemi_size * 0.75,
       layout.hemi_label_deg, name,
-      { size: ty.hemi_size, tracking: ty.hemi_tracking, class_: "hemi-label" }));
+      { size: ty.hemi_size, tracking: ty.hemi_tracking, class_: "hemi-label" })));
   }
 
+  const panelBoxes = [];
   if (config.panels?.enabled) {
     const gutter = config.panels.gutter ?? 10;
     const bands = [];
@@ -232,7 +249,10 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
       }]);
     }
     layers["layer-panels"].push(
-      bands.map(([names, band]) => drawBand(names, band, theme, { config, observer })).join(""));
+      bands.map(([names, band]) =>
+        drawBand(names, band, theme,
+          { config, observer, placed: placed.panels ?? {}, boxes: panelBoxes })
+      ).join(""));
   }
 
   for (const key of LAYER_ORDER) {
@@ -246,5 +266,5 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   }
 
   return { markup: svg.document_(page.width, page.height, defs.join(""), body.join("")),
-           hemispheres: [north, south], bodyStates };
+           hemispheres: [north, south], panelBoxes, bodyStates };
 }

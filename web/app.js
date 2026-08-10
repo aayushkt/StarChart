@@ -30,6 +30,8 @@ const state = {
   fitted: true,
   panelsOff: new Set(),
   allPanels: { middle: [], bottom: [] },
+  hemispheres: [],
+  panelBoxes: [],
 };
 
 const round = (v, p) => Number(v.toFixed(p));
@@ -60,10 +62,13 @@ function rerender() {
     middle: (state.allPanels.middle ?? []).filter((n) => !state.panelsOff.has(n)),
     bottom: (state.allPanels.bottom ?? []).filter((n) => !state.panelsOff.has(n)),
   };
-  const { markup } = buildChart({
+  const built = buildChart({
     config: panels ? { ...state.config, panels } : state.config,
     theme: state.theme, data: state.data, observer, ui: state.ui,
   });
+  const markup = built.markup;
+  state.hemispheres = built.hemispheres;
+  state.panelBoxes = built.panelBoxes;
   const wrap = document.getElementById("chart-wrap");
   wrap.innerHTML = markup;
   state.svg = wrap.querySelector("svg");
@@ -516,6 +521,25 @@ function fit() {
   paint();
 }
 
+/** Write a finished drag into the config, then re-render from it. */
+function commitMove(handle, dx, dy) {
+  const placement = state.config.placement ?? (state.config.placement = {});
+  if (handle.kind === "plate") {
+    const hemi = state.hemispheres.find((h) => h.pole === handle.name);
+    if (!hemi) return;
+    placement.plates = placement.plates ?? {};
+    placement.plates[handle.name] = { cx: hemi.cx + dx, cy: hemi.cy + dy };
+  } else {
+    const entry = state.panelBoxes.find((b) => b.name === handle.name);
+    if (!entry) return;
+    placement.panels = placement.panels ?? {};
+    placement.panels[handle.name] = {
+      ...entry.box, x: entry.box.x + dx, y: entry.box.y + dy,
+    };
+  }
+  rerender();
+}
+
 function panBy(dx, dy) {
   state.view.tx += dx;
   state.view.ty += dy;
@@ -561,23 +585,66 @@ function initViewport() {
     }
   }, { passive: false });
 
+  /* Left-drag moves whatever is under the pointer, and pans only when that is
+   * nothing. A plate is spread across every layer group, so it is found by its
+   * data-plate tag and all its pieces move together; a diagram is a single
+   * group. During the drag the pieces are translated with a CSS transform,
+   * which is instant, and the position is committed to the config on release --
+   * re-rendering on every pointermove would be a 35 ms frame. */
   let pointer = null;
+
+  const handleFor = (target) => {
+    const panel = target.closest?.("[data-drag]");
+    if (panel) return { kind: "panel", name: panel.dataset.drag.split(":")[1] };
+    const plate = target.closest?.("[data-plate]");
+    if (plate) return { kind: "plate", name: plate.dataset.plate };
+    return null;
+  };
+
+  const piecesFor = (handle) =>
+    handle.kind === "plate"
+      ? [...state.svg.querySelectorAll(`[data-plate="${handle.name}"]`)]
+      : [...state.svg.querySelectorAll(`[data-drag="panel:${handle.name}"]`)];
+
   el.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
-    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    const handle = state.locked ? null : handleFor(event.target);
+    pointer = {
+      id: event.pointerId, x: event.clientX, y: event.clientY,
+      dx: 0, dy: 0, handle,
+      pieces: handle ? piecesFor(handle) : [],
+    };
     el.setPointerCapture(event.pointerId);
-    el.classList.add("dragging");
+    el.classList.add(handle ? "moving" : "dragging");
   });
+
   el.addEventListener("pointermove", (event) => {
     if (!pointer || event.pointerId !== pointer.id) return;
-    panBy(event.clientX - pointer.x, event.clientY - pointer.y);
+    const dx = event.clientX - pointer.x;
+    const dy = event.clientY - pointer.y;
+
+    if (!pointer.handle) {
+      panBy(dx, dy);
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      return;
+    }
+    // Screen pixels to chart millimetres.
+    pointer.dx += dx / state.view.scale;
+    pointer.dy += dy / state.view.scale;
     pointer.x = event.clientX;
     pointer.y = event.clientY;
+    const shift = `translate(${pointer.dx.toFixed(3)} ${pointer.dy.toFixed(3)})`;
+    for (const piece of pointer.pieces) piece.setAttribute("transform", shift);
   });
+
   const release = (event) => {
     if (!pointer || event.pointerId !== pointer.id) return;
+    const { handle, dx, dy } = pointer;
     pointer = null;
-    el.classList.remove("dragging");
+    el.classList.remove("dragging", "moving");
+    if (!handle || (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01)) return;
+    commitMove(handle, dx, dy);
   };
   el.addEventListener("pointerup", release);
   el.addEventListener("pointercancel", release);
@@ -657,7 +724,12 @@ async function boot() {
 }
 
 document.getElementById("download").addEventListener("click", download);
+document.getElementById("reset-layout")?.addEventListener("click", () => {
+  delete state.config.placement;
+  rerender();
+});
 document.getElementById("reset").addEventListener("click", () => {
+  delete state.config.placement;
   state.ui = {
     starScale: 1, mwScale: 1, magLimit: 5,
     labelBucket: state.theme.labels.mag_bucket,

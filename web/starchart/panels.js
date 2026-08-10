@@ -357,7 +357,10 @@ export function drawBand(names, band, theme, ctx) {
   return names.map((name, i) => {
     const draw = PANELS[name];
     if (!draw) return "";
-    const box = { x: band.x + i * (width + gutter), y: band.y, w: width, h: band.h };
-    return `<g id="panel-${name}">${draw(box, theme, ctx)}</g>`;
+    // The band gives each diagram its slot; a dragged position replaces it.
+    const slot = { x: band.x + i * (width + gutter), y: band.y, w: width, h: band.h };
+    const box = { ...slot, ...(ctx.placed?.[name] ?? {}) };
+    ctx.boxes?.push({ name, box });
+    return `<g id="panel-${name}" data-drag="panel:${name}">${draw(box, theme, ctx)}</g>`;
   }).join("");
 }

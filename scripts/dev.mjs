@@ -13,7 +13,9 @@ import path from "node:path";
 const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
 const WEB = path.join(ROOT, "web");
 
-const DEFAULT_PORT = 8000;
+// 8888 rather than 8000: the usual default collides with everything else on a
+// development machine, and a port that moves around is worse than a fixed one.
+const DEFAULT_PORT = 8888;
 const PORT_SEARCH = 20;
 const TYPES = {
   ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",

@@ -233,18 +233,52 @@ const panned = view();
 (panned.ty < beforePan.ty && panned.tx < beforePan.tx && panned.scale === beforePan.scale)
   ? ok("two-finger scroll pans without zooming") : fail("scroll did not pan");
 
+// Dragging the paper itself pans; dragging an object moves the object.
 const dragFrom = view();
+const drag = (target, from, to, id = 1) => {
+  target.dispatchEvent(new window.PointerEvent("pointerdown",
+    { button: 0, pointerId: id, clientX: from[0], clientY: from[1], bubbles: true }));
+  stage.dispatchEvent(new window.PointerEvent("pointermove",
+    { pointerId: id, clientX: to[0], clientY: to[1], bubbles: true }));
+  stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: id, bubbles: true }));
+};
 stage.dispatchEvent(new window.PointerEvent("pointerdown",
   { button: 0, pointerId: 1, clientX: 500, clientY: 300, bubbles: true }));
 stage.dispatchEvent(new window.PointerEvent("pointermove",
   { pointerId: 1, clientX: 560, clientY: 340, bubbles: true }));
 const dragged = view();
 (Math.abs(dragged.tx - dragFrom.tx - 60) < 0.001 && Math.abs(dragged.ty - dragFrom.ty - 40) < 0.001)
-  ? ok("drag pans one-to-one with the pointer") : fail("drag pan wrong");
+  ? ok("dragging the paper pans one-to-one") : fail("drag pan wrong");
 stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 1, bubbles: true }));
 
 stage.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true }));
 Math.abs(view().scale - fitted.scale) < 1e-6 ? ok("double-click refits") : fail("no refit");
+
+// --- moving a plate and a diagram
+const plateCx = () => Number(chart().querySelector("#layer-plate circle").getAttribute("cx"));
+const panelX = () => Number(
+  chart().querySelector('[data-drag="panel:solar-eclipse"] rect')?.getAttribute("x") ?? NaN);
+
+const plateBefore = plateCx();
+const plateTarget = chart().querySelector('[data-plate="north"]');
+plateTarget ? ok("plates carry a drag tag on every layer") : fail("no data-plate groups");
+const platePieces = chart().querySelectorAll('[data-plate="north"]').length;
+platePieces > 5 ? ok(`north plate spans ${platePieces} layer groups`) : fail("plate not tagged across layers");
+drag(plateTarget, [500, 300], [560, 340], 2);
+Math.abs(plateCx() - plateBefore) > 1
+  ? ok(`dragging a plate moves it (cx ${plateBefore} to ${plateCx()})`)
+  : fail("plate did not move");
+
+const panelBefore = panelX();
+const panelTarget = chart().querySelector('[data-drag="panel:solar-eclipse"]');
+drag(panelTarget, [500, 300], [540, 280], 3);
+Math.abs(panelX() - panelBefore) > 1
+  ? ok(`dragging a diagram moves it (x ${panelBefore} to ${panelX()})`)
+  : fail("diagram did not move");
+
+d.querySelector("#reset-layout").click();
+Math.abs(plateCx() - plateBefore) < 0.001 && Math.abs(panelX() - panelBefore) < 0.001
+  ? ok("reset layout restores the computed arrangement") : fail("reset layout failed");
 
 d.querySelectorAll("[data-zoom]").length === 0
   ? ok("zoom buttons removed") : fail("zoom buttons still present");

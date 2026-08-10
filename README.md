@@ -11,7 +11,7 @@ mark a specific moment in time.
 
 ```sh
 npm install          # jsdom, for the headless editor test
-npm run dev          # serves the editor at http://127.0.0.1:8000
+npm run dev          # serves the editor at http://127.0.0.1:8888
 ```
 
 No build step and no backend. The renderer is plain ES modules; `npm install`
