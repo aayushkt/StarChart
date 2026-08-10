@@ -1,0 +1,16 @@
+{
+  "name": "starchart",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A vintage celestial chart generated from catalogue data",
+  "scripts": {
+    "test": "node --test tests/test_starchart.mjs && node tests/editor_smoke.mjs",
+    "dev": "node scripts/dev.mjs",
+    "build-data": "node scripts/build-data.mjs",
+    "rebaseline": "node scripts/rebaseline.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

@@ -1,0 +1,6 @@
+node_modules/
+out/
+.DS_Store
+web/chart.svg
+__pycache__/
+web/starchart/config.local.js

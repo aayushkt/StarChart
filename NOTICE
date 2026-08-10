@@ -1,0 +1,34 @@
+StarChart bundles third-party astronomical data. Attribution follows.
+
+--------------------------------------------------------------------------
+d3-celestial  --  data/d3-celestial/
+--------------------------------------------------------------------------
+Copyright (c) 2015, Olaf Frohn.  Released under the BSD 3-Clause License;
+the full text is in data/d3-celestial/LICENSE.d3-celestial.
+
+    https://github.com/ofrohn/d3-celestial
+
+Files are used unmodified, as published upstream:
+
+  stars.6.json       XHIP: An Extended Hipparcos Compilation
+                     Anderson E., Francis C. (2012)
+  starnames.json     HD-DM-GC-HR cross index; FK5-SAO-HD index;
+                     General Catalogue of Variable Stars;
+                     Gliese Catalogue of Nearby Stars
+  mw.json            Milky Way Outline Catalog, Jose R. Vieira
+  constellations.json  IAU constellation data, with name positions and
+                     modifications by the d3-celestial maintainer
+
+All coordinates are epoch J2000.
+
+--------------------------------------------------------------------------
+Not used
+--------------------------------------------------------------------------
+This project does not incorporate any code from modhtom/StarMap, which
+carries a non-commercial licence whose terms extend to derivative works.
+The catalogue files that repository ships are themselves d3-celestial's,
+and are taken here from d3-celestial directly under the BSD terms above.
+
+The design being reproduced is a 19th-century celestial chart of a type
+long in the public domain. No part of any modern scan or reproduction is
+traced or embedded; every mark is generated from the catalogue data.

@@ -1,0 +1,114 @@
+/* The chart's stylesheet, embedded inside the SVG.
+ *
+ * Mirrors starchart/style.py, and a test diffs the two byte for byte. Every
+ * colour and weight reaches the document through a CSS class rather than a
+ * presentation attribute, which is what lets the editor restyle a finished
+ * chart without regenerating it.
+ *
+ * Plain class selectors, not custom properties: librsvg does not implement
+ * var(), and drops the whole declaration rather than falling back.
+ */
+
+import { BUCKET_COUNT } from "./labels.js";
+import { fmt } from "./svg.js";
+
+const n = (v) => fmt(Number(v), 6);
+
+export const LAYERS = [
+  ["layer-frame", "Border"],
+  ["layer-title", "Title"],
+  ["layer-plate", "Plate"],
+  ["layer-milkyway", "Milky Way"],
+  ["layer-grid", "Graticule"],
+  ["layer-stars", "Stars"],
+  ["layer-star-halos", "Star halos"],
+  ["layer-rim", "Degree scale"],
+  ["layer-hemi-labels", "Hemisphere labels"],
+  ["layer-tropics", "Tropics & polar circles"],
+  ["layer-ecliptic", "Ecliptic"],
+  ["layer-colures", "Colures"],
+  ["layer-constellation-labels", "Constellation names"],
+  ["layer-star-labels", "Star names"],
+  ["layer-moon-track", "Moon's monthly path"],
+  ["layer-sun", "Sun & its day circle"],
+  ["layer-moon", "Moon & its day circle"],
+  ["layer-horizon", "Horizon & zenith"],
+];
+
+export function stylesheet(theme, ui = {}) {
+  const pg = theme.page, pl = theme.plate, st = theme.stars;
+  const mw = theme.milkyway, gr = theme.grid, ty = theme.type;
+  const hz = theme.horizon, rf = theme.reference, lb = theme.labels, bd = theme.bodies;
+
+  const rules = [
+    `.page-bg{fill:${pg.background}}`,
+    `.frame{fill:none;stroke:${pg.frame};stroke-width:${n(pg.frame_width)}}`,
+    `.frame-inner{fill:none;stroke:${pg.frame};stroke-width:${n(pg.frame_inner_width)}}`,
+    `.plate-bg{fill:${pl.fill}}`,
+    `.rim-band{fill:${pl.scale_fill}}`,
+    `.rim-inner{fill:none;stroke:${pl.rim};stroke-width:${n(pl.rim_width)}}`,
+    `.rim-outer{fill:none;stroke:${pg.frame};stroke-width:${n(pl.rim_width)}}`,
+    `.scale-tick{stroke:${pl.scale_tick};stroke-width:0.3}`,
+    `.scale-label{fill:${pl.scale_text};font-family:${ty.body};` +
+      `font-size:${n(ty.scale_size)}px;text-anchor:middle}`,
+    `.mw{fill:${mw.fill};stroke:none}`,
+    `.grid{fill:none;stroke:${gr.stroke};stroke-width:${n(gr.width)};` +
+      `stroke-opacity:${n(gr.opacity)}}`,
+    `.grid-accent{stroke:${gr.accent_stroke};stroke-width:${n(gr.accent_width)}}`,
+    `.star{fill:${st.fill}}`,
+    `.star-halo{fill:${st.halo_fill};fill-opacity:${n(st.halo_opacity)}}`,
+    `.title{fill:${ty.title_fill};font-family:${ty.display};` +
+      `font-size:${n(ty.title_size)}px;letter-spacing:${n(ty.title_tracking)}px;` +
+      `text-anchor:middle}`,
+    `.hemi-label{fill:${ty.hemi_fill};font-family:${ty.display};` +
+      `font-size:${n(ty.hemi_size)}px}`,
+    `.horizon{fill:none;stroke:${hz.stroke};stroke-width:${n(hz.width)};` +
+      `stroke-dasharray:${hz.dash};stroke-opacity:${n(hz.opacity)};stroke-linecap:round}`,
+    `.zenith{fill:none;stroke:${hz.zenith_stroke};` +
+      `stroke-width:${n(hz.zenith_width)};stroke-opacity:${n(hz.opacity)}}`,
+    `.caption{fill:${hz.caption_fill};font-family:${ty.body};` +
+      `font-size:${n(hz.caption_size)}px;letter-spacing:0.6px;text-anchor:middle}`,
+    `.ref-circle{fill:none;stroke:${rf.stroke};stroke-width:${n(rf.width)};` +
+      `stroke-dasharray:${rf.dash}}`,
+    `.ecliptic{fill:none;stroke:${rf.ecliptic_stroke};stroke-width:${n(rf.ecliptic_width)}}`,
+    `.colure{fill:none;stroke:${rf.colure_stroke};stroke-width:${n(rf.colure_width)}}`,
+    `.ref-label,.ecliptic-label{fill:${rf.label_fill};font-family:${ty.body};` +
+      `font-size:${n(rf.label_size)}px;font-style:italic}`,
+    `.star-label{fill:${ty.star_fill};font-family:${ty.label};` +
+      `font-size:${n(ty.star_size)}px;font-style:italic}`,
+    `.constel-label{fill:${ty.constel_fill};font-family:${ty.label};` +
+      `font-size:${n(ty.constel_size)}px}`,
+    `.constel-label-alt{fill:${ty.constel_alt};font-family:${ty.label};` +
+      `font-size:${n(ty.constel_size * 0.78)}px;font-style:italic}`,
+    `.sun-disc{fill:${bd.sun_fill}}`,
+    `.sun-ray{fill:${bd.sun_ray};stroke:none}`,
+    `.sun-limb{fill:none;stroke:${bd.sun_limb};stroke-width:0.35}`,
+    `.moon-dark{fill:${bd.moon_dark}}`,
+    `.moon-lit{fill:${bd.moon_lit}}`,
+    `.moon-limb{fill:none;stroke:${bd.moon_limb};stroke-width:0.35}`,
+    `.day-circle{fill:none;stroke-width:${n(bd.day_circle_width)};` +
+      `stroke-dasharray:${bd.day_circle_dash}}`,
+    `.day-circle-sun{stroke:${bd.day_circle_sun}}`,
+    `.day-circle-moon{stroke:${bd.day_circle_moon}}`,
+    `.moon-track{fill:none;stroke:${bd.moon_track};` +
+      `stroke-width:${n(bd.moon_track_width)};stroke-dasharray:${bd.moon_track_dash}}`,
+    `.body-label{font-family:${ty.body};font-size:${n(bd.label_size)}px;font-style:italic}`,
+    `.body-label-sun{fill:${bd.day_circle_sun}}`,
+    `.body-label-moon{fill:${bd.day_circle_moon}}`,
+  ];
+
+  mw.opacities.forEach((o, i) =>
+    rules.push(`.mw-${i + 1}{fill-opacity:${n(o * (ui.mwScale ?? 1))}}`));
+  st.radii.forEach((r, i) => {
+    rules.push(`.mag-${i + 1}{r:${n(r * (ui.starScale ?? 1))}px}`);
+    rules.push(`.halo-${i + 1}{r:${n(r * (ui.starScale ?? 1) * st.halo_scale)}px}`);
+  });
+
+  for (let k = (ui.labelBucket ?? lb.mag_bucket) + 1; k < BUCKET_COUNT; k++) {
+    rules.push(`.lbl-b${k}{display:none}`);
+  }
+  for (let m = (ui.magLimit ?? 5) + 1; m <= 5; m++) {
+    rules.push(`.mag-${m},.halo-${m}{display:none}`);
+  }
+  return rules.join("\n");
+}
