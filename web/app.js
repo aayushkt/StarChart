@@ -1141,29 +1141,55 @@ function initViewport() {
 
   document.getElementById("actual-size").addEventListener("click", actualSize);
 
-  /* Calibration: draw a bar of a known length in millimetres at the current
-   * assumed scale, ask how long it really is, and scale the assumption by the
-   * ratio. */
-  const REFERENCE_MM = 100;
+  /* Calibration: draw a bar of a known length at the currently assumed scale,
+   * ask how long it really is, and scale the assumption by the ratio.
+   *
+   * The bar is as long as the window allows rather than a fixed 100 mm. The
+   * error in reading a ruler is roughly constant -- half a millimetre or so,
+   * however carefully anyone squints -- so the longer the bar, the smaller that
+   * error is as a fraction, and the fraction is what the calibration inherits.
+   */
+  const TO_MM = { mm: 1, cm: 10, in: 25.4 };
   const panel = document.getElementById("ruler");
   const bar = document.getElementById("ruler-bar");
   const input = document.getElementById("ruler-mm");
+  const unit = document.getElementById("ruler-unit");
+  const nominalLabel = document.getElementById("ruler-nominal");
+
+  /** A round number of millimetres that fits across the panel. */
+  const referenceMm = () => {
+    const available = (panel.clientWidth || stage().clientWidth || 800) - 48;
+    return Math.max(50, Math.floor(available / pxPerMm() / 50) * 50);
+  };
+
+  const showNominal = () => {
+    const mm = referenceMm();
+    input.dataset.nominal = String(mm);
+    bar.style.width = `${mm * pxPerMm()}px`;
+    nominalLabel.textContent =
+      `${mm} mm  ·  ${(mm / 10).toFixed(1)} cm  ·  ${(mm / 25.4).toFixed(2)} inches`;
+    const u = unit.value;
+    input.value = (mm / TO_MM[u]).toFixed(u === "mm" ? 1 : 2);
+    input.step = u === "mm" ? 0.5 : u === "cm" ? 0.05 : 0.02;
+  };
 
   const showRuler = (on) => {
     panel.hidden = !on;
     document.getElementById("calibrate").classList.toggle("on", on);
     if (on) {
-      bar.style.width = `${REFERENCE_MM * pxPerMm()}px`;
-      input.value = REFERENCE_MM;
+      showNominal();
       input.focus();
+      input.select?.();
     }
   };
+  unit.addEventListener("change", showNominal);
   document.getElementById("calibrate")
     .addEventListener("click", () => showRuler(panel.hidden));
   document.getElementById("ruler-done").addEventListener("click", () => {
-    const measured = Number(input.value);
-    if (measured > 10) {
-      state.dpi = dpi() * (REFERENCE_MM / measured);
+    const nominal = Number(input.dataset.nominal);
+    const measured = Number(input.value) * TO_MM[unit.value];
+    if (measured > 10 && nominal > 10) {
+      state.dpi = dpi() * (nominal / measured);
       remember("starchart.dpi", String(state.dpi));
     }
     showRuler(false);

@@ -634,13 +634,37 @@ d.querySelector("#reset-layout").click();
   // Calibrating for a denser screen must shrink the on-screen millimetre.
   d.querySelector("#calibrate").click();
   !d.querySelector("#ruler").hidden ? ok("the ruler opens") : fail("ruler stayed hidden");
-  d.querySelector("#ruler-mm").value = "80";      // the bar measured short
+
+  const input = d.querySelector("#ruler-mm");
+  const nominal = Number(input.dataset.nominal);
+  nominal >= 50 && nominal % 50 === 0
+    ? ok(`the bar is a round ${nominal} mm, sized to the window`)
+    : fail(`nominal is ${nominal}`);
+
+  // Report the bar as 20% short, whatever length it was drawn at.
+  input.value = String(nominal * 0.8);
+  d.querySelector("#ruler-unit").value = "mm";
   d.querySelector("#ruler-done").click();
   const denser = chartWidthPx();
-  denser > 24 * 96 * 1.2
+  Math.abs(denser - 24 * 96 * 1.25) < 2
     ? ok(`calibration scales it (now ${Math.round(denser)} px for the same 24 inches)`)
-    : fail(`calibration did nothing: ${denser}`);
+    : fail(`calibration off: ${denser}`);
   zoomLabel() === "100%" ? ok("still reads 100% after calibrating") : fail("readout drifted");
+
+  // Reading the bar correctly, in inches, must leave the scale alone -- which
+  // is only true if the unit conversion round-trips.
+  const beforeInches = chartWidthPx();
+  d.querySelector("#calibrate").click();
+  d.querySelector("#ruler-unit").value = "in";
+  d.querySelector("#ruler-unit").dispatchEvent(new window.Event("change"));
+  d.querySelector("#ruler-done").click();
+  // Within a tenth of a percent: the inch reading is shown to two decimals,
+  // which is already finer than a ruler can be read, so that rounding is the
+  // floor on this comparison rather than a defect.
+  const drift = Math.abs(chartWidthPx() - beforeInches) / beforeInches;
+  drift < 0.001
+    ? ok(`measuring in inches round-trips (${(drift * 100).toFixed(3)}% drift)`)
+    : fail(`unit conversion is off by ${(drift * 100).toFixed(2)}%`);
   Number(localStorage.getItem("starchart.dpi")) > 96
     ? ok("the measurement is remembered") : fail("calibration not stored");
   localStorage.removeItem("starchart.dpi");
