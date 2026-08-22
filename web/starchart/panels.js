@@ -355,6 +355,24 @@ function moonIllumination(box, theme, ctx) {
 
 /* ------------------------------------------------------------ registry */
 
+/** What each diagram wants to be, in millimetres.
+ *
+ * Chosen for the drawing rather than for whatever space is left over: the
+ * eclipses are long and low because they are a row of bodies on a line, the
+ * moon wheel is square because it is a circle, the size comparison is wide
+ * because it is a queue of planets. Splitting a leftover band between them made
+ * every one of them the wrong shape.
+ */
+export const PANEL_SIZES = {
+  "planet-sizes": { w: 210, h: 62 },
+  "magnitude-key": { w: 130, h: 62 },
+  "solar-system": { w: 130, h: 95 },
+  "solar-eclipse": { w: 165, h: 58 },
+  "lunar-eclipse": { w: 165, h: 58 },
+  "earth-revolution": { w: 185, h: 85 },
+  "moon-illumination": { w: 120, h: 100 },
+};
+
 export const PANELS = {
   "planet-sizes": planetSizes,
   "magnitude-key": magnitudeKey,
@@ -365,16 +383,40 @@ export const PANELS = {
   "moon-illumination": moonIllumination,
 };
 
-/** Lay a row of panels across a band, splitting it evenly. */
-export function drawBand(names, band, theme, ctx) {
+/** Flow the diagrams across the sheet at their own sizes, wrapping.
+ *
+ * They are allowed to land on the plates. Nothing is resized to dodge a
+ * collision -- a diagram squeezed into a leftover gap reads worse than one
+ * sitting on top of something, and anything can be dragged or scaled after.
+ */
+export function layoutPanels(names, area, gutter) {
+  const boxes = [];
+  let x = area.x;
+  let y = area.y;
+  let rowHeight = 0;
+
+  for (const name of names) {
+    const size = PANEL_SIZES[name];
+    if (!size) continue;
+    if (x > area.x && x + size.w > area.x + area.w) {
+      x = area.x;
+      y += rowHeight + gutter;
+      rowHeight = 0;
+    }
+    boxes.push({ name, box: { x, y, w: size.w, h: size.h } });
+    x += size.w + gutter;
+    rowHeight = Math.max(rowHeight, size.h);
+  }
+  return boxes;
+}
+
+export function drawPanels(names, area, theme, ctx) {
   const gutter = ctx.config.panels?.gutter ?? 10;
-  const width = (band.w - gutter * (names.length - 1)) / names.length;
-  return names.map((name, i) => {
+  return layoutPanels(names, area, gutter).map(({ name, box: flowed }) => {
     const draw = PANELS[name];
     if (!draw) return "";
-    // The band gives each diagram its slot; a dragged position replaces it.
-    const slot = { x: band.x + i * (width + gutter), y: band.y, w: width, h: band.h };
-    const box = { ...slot, ...(ctx.placed?.[name] ?? {}) };
+    // The flow gives each diagram a place; a dragged position replaces it.
+    const box = { ...flowed, ...(ctx.placed?.[name] ?? {}) };
     ctx.boxes?.push({ name, box });
     // Each diagram draws against its own resolved style, so headings, rules and
     // palettes are independent without any panel knowing that.

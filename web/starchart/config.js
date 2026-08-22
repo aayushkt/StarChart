@@ -40,7 +40,14 @@ export default {
   },
 
   stars: {
-    limiting_mag: 6.0,
+    // The faintest engraved class to draw, 1 to 5 -- the same five sizes the
+    // magnitude key shows. Four keeps 909 stars rather than 5,044, dropping a
+    // dusting too fine to read as anything at poster size. Five draws the lot.
+    //
+    // A class rather than a magnitude because the boundaries are inclusive: a
+    // star of magnitude exactly 4.5 belongs to class 5, so "brighter than 4.5"
+    // and "the first four classes" are not the same set.
+    faintest_class: 4,
   },
 
   labels: {
@@ -58,18 +65,17 @@ export default {
     // The ornamental diagrams the original prints around its plates. Each is
     // generated from real figures rather than traced, so the planet sizes and
     // distances are true and the Moon shows the phase on the configured date.
-    // Off by default: with the plates filling the sheet there is no room left
-    // under them, and the diagrams would land on top of the lower one. Switch
-    // them on in Layout > Diagrams and drag them where you want -- overlapping
-    // is allowed.
+    // Off by default: with the plates filling the sheet the diagrams land on
+    // top of them. Switch them on in Layout > Diagrams and drag them where you
+    // want -- overlapping is allowed and expected.
     enabled: false,
-    // The plates sit close together, as they do on the original, so the
-    // diagrams go below them in rows rather than between.
-    middle: [],
-    rows: [
-      ["planet-sizes", "magnitude-key", "solar-system"],
-      ["solar-eclipse", "lunar-eclipse", "earth-revolution", "moon-illumination"],
+    // Drawn at their own sizes and flowed across the sheet, wrapping.
+    order: [
+      "planet-sizes", "magnitude-key", "solar-system",
+      "solar-eclipse", "lunar-eclipse", "earth-revolution", "moon-illumination",
     ],
+    // Where the flow starts, below the top margin.
+    start_offset: 60.0,
     gutter: 10.0,
   },
 

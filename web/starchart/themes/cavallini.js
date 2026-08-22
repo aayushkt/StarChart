@@ -79,7 +79,7 @@ export default {
     colure_stroke: "#8fb2c2",
     colure_width: 0.4,
     label_fill: "#cfe0e6",
-    label_size: 2.4,
+    label_size: 3.6,
     label_tracking: 0.45,
     // Gap between the tops of the letters and the circle they sit inside. The
     // baseline is derived from this, because glyphs grow outward from the
@@ -124,7 +124,7 @@ export default {
     moon_track_width: 0.5,
     moon_track_dash: "0.9 1.6",
     label_day_circle: true,
-    label_size: 2.2,
+    label_size: 3.6,
     label_tracking: 0.45,
     label_clearance: 1.1,
     sun_label_deg: 205.0,
@@ -169,7 +169,7 @@ export default {
     zenith_width: 0.7,
     zenith_size: 2.2,
     caption_fill: "#1d3a49",
-    caption_size: 3.6,
+    caption_size: 5.0,
   },
 
   type: {
@@ -185,10 +185,15 @@ export default {
     hemi_size: 7.0,
     hemi_tracking: 2.6,
     hemi_fill: "#1d3a49",
-    scale_size: 2.5,
+    scale_size: 3.6,
+    // The smallest type on the plate; nothing else goes below it.
     constel_size: 3.4,
+    // The Latin name under the English one. Set to the same size rather than
+    // stepped down, so nothing on the plate is smaller than a constellation
+    // name -- the italic already tells the two lines apart.
+    constel_alt_scale: 1.0,
     constel_fill: "#eee9d6",
-    star_size: 2.3,
+    star_size: 3.6,
     star_fill: "#f0ead7",
     constel_alt: "#cfe0e6",
   },

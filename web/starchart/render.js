@@ -9,7 +9,7 @@ import { drawBody, drawMoonTrack, states } from "./bodies.js";
 import { Placer, bucketFor, placeConstellationLabels, placeStarLabels } from "./labels.js";
 import { arcText } from "./lettering.js";
 import { caption, drawOverlay } from "./overlay.js";
-import { drawBand } from "./panels.js";
+import { drawPanels } from "./panels.js";
 import { Hemisphere, NORTH, stackedPair } from "./projection.js";
 import { drawColures, drawEcliptic, drawSmallCircles } from "./reference.js";
 import { LAYERS, stylesheet } from "./style.js";
@@ -66,11 +66,11 @@ function drawGrid(hemi, theme) {
   return `<g class="grid">${parts.join("")}</g>`;
 }
 
-function drawStars(hemi, theme, data) {
+function drawStars(hemi, theme, data, faintest) {
   const st = theme.stars;
   const halos = [], bodies = [];
   for (const [ra, dec, mag] of data.stars) {
-    if (!hemi.visible(dec)) continue;
+    if (magClass(mag) > faintest || !hemi.visible(dec)) continue;
     const [x, y] = hemi.project(ra, dec);
     const k = magClass(mag);
     const r = st.radii[k - 1];
@@ -124,10 +124,12 @@ function drawLabels(hemi, config, theme, data) {
   const constGroup = placeConstellationLabels(hemi, constellations, theme, placer);
 
   const limit = cfg.star_mag_limit ?? 4;
+  // Never name a star that is not drawn.
+  const faintest = config.stars?.faintest_class ?? 5;
   const entries = [];
   data.stars.forEach(([ra, dec, mag], i) => {
     const name = data.starNames[String(i)];
-    if (!name || mag > limit || !hemi.visible(dec)) return;
+    if (!name || mag > limit || magClass(mag) > faintest || !hemi.visible(dec)) return;
     const [x, y] = hemi.project(ra, dec);
     entries.push([x, y, name, mag]);
   });
@@ -212,6 +214,7 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
 
   const layers = Object.fromEntries(LAYER_ORDER.map((k) => [k, []]));
   const labelsOn = config.labels?.enabled ?? true;
+  const faintestClass = config.stars?.faintest_class ?? 5;
 
   for (const [hemi, name] of [[north, "NORTHERN HEMISPHERE"], [south, "SOUTHERN HEMISPHERE"]]) {
     const clipId = `clip-${hemi.pole}`;
@@ -232,7 +235,7 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
     layers["layer-ecliptic"].push(clip(drawEcliptic(hemi, theme, labelsOn)));
     layers["layer-colures"].push(clip(drawColures(hemi, theme, labelsOn)));
 
-    const [halos, stars] = drawStars(hemi, theme, data);
+    const [halos, stars] = drawStars(hemi, theme, data, faintestClass);
     layers["layer-star-halos"].push(clip(halos));
     layers["layer-stars"].push(clip(stars));
 
@@ -266,36 +269,19 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
 
   const panelBoxes = [];
   if (config.panels?.enabled) {
-    const gutter = config.panels.gutter ?? 10;
-    const bands = [];
-    // Between the plates, and below the lower one -- the two places the
-    // stacked layout leaves free.
-    if (config.panels.middle?.length) {
-      bands.push([config.panels.middle, {
-        x: page.margin, y: north.cy + north.radius + gutter,
-        w: page.width - 2 * page.margin,
-        h: (south.cy - south.radius) - (north.cy + north.radius) - 2 * gutter,
-      }]);
-    }
-    // Everything else stacks in rows below the lower plate, sharing the space
-    // evenly.
-    const rows = config.panels.rows ?? (config.panels.bottom ? [config.panels.bottom] : []);
-    if (rows.length) {
-      const top = south.cy + south.radius + gutter;
-      const available = (page.height - page.margin - (observer ? 14 : 0)) - top;
-      const rowHeight = (available - gutter * (rows.length - 1)) / rows.length;
-      rows.forEach((names, i) => {
-        bands.push([names, {
-          x: page.margin, y: top + i * (rowHeight + gutter),
-          w: page.width - 2 * page.margin, h: rowHeight,
-        }]);
-      });
-    }
-    layers["layer-panels"].push(
-      bands.map(([names, band]) =>
-        drawBand(names, band, theme,
-          { config, observer, placed: placed.panels ?? {}, boxes: panelBoxes })
-      ).join(""));
+    // One flow area across the whole sheet. The diagrams keep their own sizes
+    // and are allowed to overlap the plates -- the alternative was fitting them
+    // into whatever space the plates left, which produced bands of negative
+    // height once the plates filled the sheet.
+    const area = {
+      x: page.margin,
+      y: page.margin + (config.panels.start_offset ?? 60),
+      w: page.width - 2 * page.margin,
+      h: page.height - 2 * page.margin,
+    };
+    layers["layer-panels"].push(drawPanels(
+      config.panels.order ?? [], area, theme,
+      { config, observer, placed: placed.panels ?? {}, boxes: panelBoxes }));
   }
 
   for (const key of LAYER_ORDER) {

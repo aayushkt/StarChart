@@ -116,9 +116,16 @@ clearance above and below and their rims touching — 24 × 36 inches, a radius 
 and offset by hand; sizing the plates by their grip does that for you, since
 otherwise the radius is derived and the drag would do nothing.
 
-The diagrams start switched off, because with the plates filling the sheet there
-is no room under them. **Layout → Diagrams → Show the diagrams** brings them
-back, to be dragged wherever you want.
+The diagrams start switched off, because with the plates filling the sheet they
+land on top of them. **Layout → Diagrams → Show the diagrams** brings them back,
+to be dragged wherever you want.
+
+Each is drawn at its own size and they flow across the sheet, wrapping — the
+eclipses long and low because they are a row of bodies on a line, the moon wheel
+square because it is a circle, the size comparison wide because it is a queue of
+planets. Nothing is resized to dodge a collision: a diagram squeezed into a
+leftover gap reads worse than one sitting on top of something, and anything can
+be dragged or scaled afterwards.
 
 Each diagram is styled on its own. Selecting one seeds it a copy of the shared
 defaults, after which its palette, heading, captions and the rule above its

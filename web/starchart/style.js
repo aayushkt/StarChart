@@ -107,7 +107,7 @@ export function stylesheet(theme, ui = {}) {
     `.constel-label{fill:${ty.constel_fill};font-family:${ty.label};` +
       `font-size:${n(ty.constel_size)}px}`,
     `.constel-label-alt{fill:${ty.constel_alt};font-family:${ty.label};` +
-      `font-size:${n(ty.constel_size * 0.78)}px;font-style:italic}`,
+      `font-size:${n(ty.constel_size * (ty.constel_alt_scale ?? 0.78))}px;font-style:italic}`,
     `.sun-disc{fill:${bd.sun_fill}}`,
     `.sun-ray{fill:${bd.sun_ray};stroke:none}`,
     `.sun-limb{fill:none;stroke:${bd.sun_limb};stroke-width:0.35}`,

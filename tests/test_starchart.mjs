@@ -197,6 +197,33 @@ describe("document", () => {
     for (const [id] of LAYERS) assert.ok(markup.includes(`id="${id}"`), id);
   });
 
+  it("keeps constellation names the smallest type on the plate", () => {
+    // Everything drawn inside a plate sits at or above the constellation size.
+    const t = defaultTheme.type;
+    const floor = t.constel_size;
+    const onPlate = {
+      "constellation, Latin": floor * (t.constel_alt_scale ?? 0.78),
+      "star names": t.star_size,
+      "degree numbers": t.scale_size,
+      "reference labels": defaultTheme.reference.label_size,
+      "body path labels": defaultTheme.bodies.label_size,
+    };
+    for (const [what, size] of Object.entries(onPlate)) {
+      assert.ok(size >= floor, `${what} is ${size} mm, below the ${floor} mm floor`);
+    }
+  });
+
+  it("draws only the magnitude classes asked for", () => {
+    // The old setting was a magnitude, was read by nothing at all, and could
+    // not express this anyway: class boundaries are inclusive, so a star of
+    // magnitude exactly 4.5 is class 5 and "brighter than 4.5" leaks it in.
+    assert.equal(defaultConfig.stars.faintest_class, 4);
+    assert.ok(data.stars.some(([, , m]) => m >= 4.5), "test data has no faint stars");
+    assert.ok(!/class="mag-5"/.test(markup), "class 5 drawn despite the limit");
+    assert.ok(!/class="halo-5"/.test(markup), "class 5 halo drawn despite the limit");
+    assert.ok(/class="mag-4"/.test(markup), "class 4 should still be drawn");
+  });
+
   it("emits no CDATA", () => {
     // CDATA cannot exist in an HTML document, so importNode throws and the
     // editor fails to load the chart.
@@ -237,6 +264,25 @@ describe("document", () => {
     assert.ok(Math.abs(between) < 1e-6, "the plates should be touching by default");
     assert.equal(n.cx, defaultConfig.page.width / 2);
     assert.equal(s.cx, defaultConfig.page.width / 2);
+  });
+
+  it("draws each diagram at its own size rather than a share of a band", async () => {
+    const { PANEL_SIZES, layoutPanels } = await import("../web/starchart/panels.js");
+    const names = defaultConfig.panels.order;
+    for (const name of names) {
+      assert.ok(PANEL_SIZES[name], `${name} has no size of its own`);
+    }
+    const boxes = layoutPanels(names, { x: 46, y: 106, w: 517, h: 800 }, 10);
+    assert.equal(boxes.length, names.length);
+    // Each keeps the shape it asked for -- the eclipses long and low, the moon
+    // wheel square -- rather than whatever a divided band would have given it.
+    for (const { name, box } of boxes) {
+      assert.equal(box.w, PANEL_SIZES[name].w, `${name} width`);
+      assert.equal(box.h, PANEL_SIZES[name].h, `${name} height`);
+    }
+    // And the flow wraps rather than running off the sheet.
+    for (const { box } of boxes) assert.ok(box.x + box.w <= 46 + 517 + 1e-9);
+    assert.ok(new Set(boxes.map((b) => b.box.y)).size > 1, "everything on one line");
   });
 
   it("uses true relative sizes and distances in the diagrams", async () => {

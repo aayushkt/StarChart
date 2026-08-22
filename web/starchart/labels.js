@@ -120,7 +120,8 @@ export function placeConstellationLabels(hemi, entries, theme, placer) {
     if (radius < size * 2) continue;
 
     const centre = (hemi.clockwise ? 1 : -1) * (ra - hemi.raZeroDeg);
-    const lines = secondary ? [[primary, size], [`(${secondary})`, size * 0.78]]
+    const altScale = theme.type.constel_alt_scale ?? 0.78;
+    const lines = secondary ? [[primary, size], [`(${secondary})`, size * altScale]]
                             : [[primary, size]];
 
     const boxes = [], drawn = [];

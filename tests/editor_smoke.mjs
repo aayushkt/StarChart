@@ -122,8 +122,30 @@ const boxOf = (spec) => {
            w: +r.getAttribute("width"), h: +r.getAttribute("height") };
 };
 
+/** A point inside an object that no smaller object covers.
+ *
+ * Selection goes to the smallest box containing the point, so with the
+ * diagrams switched on and overlapping the plates, an arbitrary point inside
+ * the plates may well belong to a diagram instead. */
 const insideOf = (spec) => {
   const b = boxOf(spec);
+  const area = b.w * b.h;
+  const others = [...chart().querySelectorAll("[data-handle] rect")]
+    .map((r) => ({ x: +r.getAttribute("x"), y: +r.getAttribute("y"),
+                   w: +r.getAttribute("width"), h: +r.getAttribute("height") }))
+    .filter((o) => o.w * o.h < area);
+  const covered = (x, y) =>
+    others.some((o) => x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h);
+
+  for (let fy = 0.15; fy < 1; fy += 0.1) {
+    for (let fx = 0.15; fx < 1; fx += 0.1) {
+      const x = b.x + b.w * fx;
+      const y = b.y + b.h * fy;
+      // Stay off the resize grip in the far corner.
+      if (fx > 0.9 && fy > 0.9) continue;
+      if (!covered(x, y)) return toClient(x, y);
+    }
+  }
   return toClient(b.x + b.w * 0.4, b.y + b.h * 0.4);
 };
 
@@ -218,11 +240,21 @@ mwToggle.checked = true;
 mwToggle.dispatchEvent(new window.Event("change"));
 
 // --- magnitude and label thresholds are CSS only
-const magSlider = [...sliders].find((s) => s.dataset.path === "ui.magLimit");
+// The magnitude control drops the classes from the drawing rather than hiding
+// them with CSS: a star that is not going to be printed should not be in the
+// file either.
+const magSlider = [...sliders].find((s) => s.dataset.path === "config.stars.faintest_class");
+magSlider ? ok("the magnitude control is present") : fail("no magnitude slider");
+const drawn = (k) => chart().querySelectorAll(`.mag-${k}`).length;
+drawn(5) === 0 ? ok("class 5 is not drawn by default") : fail(`${drawn(5)} faint stars drawn`);
+drawn(4) > 100 ? ok(`${drawn(4)} class-4 stars drawn`) : fail("class 4 missing");
 magSlider.value = "2";
 magSlider.dispatchEvent(new window.Event("input"));
-styleText().includes(".mag-3,.halo-3{display:none}")
-  ? ok("magnitude filter hides faint classes") : fail("magnitude filter failed");
+drawn(3) === 0 && drawn(2) > 0
+  ? ok("lowering it drops the fainter classes from the drawing")
+  : fail(`class 3 count ${drawn(3)}, class 2 count ${drawn(2)}`);
+magSlider.value = "4";
+magSlider.dispatchEvent(new window.Event("input"));
 
 const labelSlider = [...sliders].find((s) => s.dataset.path === "ui.labelBucket");
 const visibleNames = () => {
@@ -426,7 +458,10 @@ Math.abs(plateCentres()[0][0] - plateBefore) < 0.001
   ? ok("without shift, dragging pans instead of moving")
   : fail("plates moved without shift");
 
-drag(handleFor("plate:plates"), platePoint, nudge(platePoint, 60, 40), 2);
+// Recomputed: the pan above moved the view, so the earlier client coordinates
+// no longer point at the same place on the chart.
+const platePoint2 = insideOf("plate:plates");
+drag(handleFor("plate:plates"), platePoint2, nudge(platePoint2, 60, 40), 2);
 const centresAfter = plateCentres();
 Math.abs(centresAfter[0][0] - plateBefore) > 1
   ? ok(`dragging moves the plates (cx ${plateBefore} to ${centresAfter[0][0]})`)

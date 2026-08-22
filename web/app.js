@@ -31,7 +31,7 @@ const state = {
   dpi: 96,   // nominal until loadCalibration() reads a measured value
   editing: false,
   panelsOff: new Set(),
-  allPanels: { middle: [], rows: [] },
+  allPanels: [],
   baseConfig: null,
   hemispheres: [],
   panelBoxes: [],
@@ -69,11 +69,9 @@ function updateDims() {
 
 function rerender() {
   const observer = state.observer ? atMinutes(state.observer, state.ui.minutes) : null;
-  const keep = (names) => names.filter((n) => !state.panelsOff.has(n));
   const panels = state.config.panels && {
     ...state.config.panels,
-    middle: keep(state.allPanels.middle ?? []),
-    rows: (state.allPanels.rows ?? []).map(keep).filter((r) => r.length),
+    order: state.allPanels.filter((n) => !state.panelsOff.has(n)),
   };
   const built = buildChart({
     config: panels ? { ...state.config, panels } : state.config,
@@ -239,7 +237,7 @@ const PANEL = [
     title: "Adjustments", folders: [
       { title: "Stars", sliders: [
         { path: "ui.starScale", label: "Star size", min: 0.3, max: 2.5, step: 0.05, unit: "×" },
-        { path: "ui.magLimit", label: "Faintest magnitude class", min: 1, max: 5, step: 1, unit: "" },
+        { path: "config.stars.faintest_class", label: "Faintest magnitude class", min: 1, max: 5, step: 1, unit: "" },
         { path: "stars.halo_opacity", label: "Halo strength", min: 0, max: 0.5, step: 0.01, unit: "" },
         { path: "ui.mwScale", label: "Milky Way strength", min: 0, max: 3, step: 0.05, unit: "×" },
       ] },
@@ -406,10 +404,7 @@ const PANEL_LABELS = {
 /** One checkbox per diagram. Switching one off re-renders, so the rest of the
  *  band spreads out to fill the space rather than leaving a hole. */
 function panelRows() {
-  const present = new Set([
-    ...(state.allPanels.middle ?? []),
-    ...(state.allPanels.rows ?? []).flat(),
-  ]);
+  const present = new Set(state.allPanels);
   return Object.entries(PANEL_LABELS)
     .filter(([name]) => present.has(name) || state.panelsOff.has(name))
     .map(([name, label]) => {
@@ -1276,10 +1271,7 @@ async function boot() {
   state.data = loaded.data;
   state.observer = loaded.observer;
   state.layers = loaded.layers;
-  state.allPanels = {
-    middle: [...(loaded.config.panels?.middle ?? [])],
-    rows: (loaded.config.panels?.rows ?? []).map((r) => [...r]),
-  };
+  state.allPanels = [...(loaded.config.panels?.order ?? [])];
   // Kept pristine so "Reset layout" can restore the numbers, not just clear the
   // drags -- moving a slider is a layout change too.
   state.baseConfig = structuredClone(loaded.config);
