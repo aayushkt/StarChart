@@ -295,9 +295,14 @@ input.dispatchEvent(new window.Event("change"));
     ? ok("the two plates touch") : fail(`gap of ${between.toFixed(1)} mm between them`);
   Math.abs(circles[0].cx - 609.6 / 2) < 0.01 && Math.abs(circles[1].cx - 609.6 / 2) < 0.01
     ? ok("the plates are centred on the sheet") : fail("plates off centre");
-  circles[0].r > 190
-    ? ok(`the plates grew to fill it (r ${circles[0].r.toFixed(1)} mm)`)
-    : fail(`plates only ${circles[0].r} mm`);
+  // The size itself is pinned by the three spacing checks above -- equal
+  // clearance top and bottom, touching in the middle, fully determines it. This
+  // only guards against a degenerate collapse, so it must not carry a number
+  // tied to one sheet size.
+  const spanned = (circles[1].cy + circles[1].r + band) - (circles[0].cy - circles[0].r - band);
+  Math.abs(spanned - (capY - titleY - 2 * above)) < 0.01
+    ? ok(`the plates fill the column (r ${circles[0].r.toFixed(1)} mm on this sheet)`)
+    : fail(`spanned ${spanned.toFixed(1)} of ${(capY - titleY - 2 * above).toFixed(1)} mm`);
 }
 
 // --- the time slider re-renders the geometry
