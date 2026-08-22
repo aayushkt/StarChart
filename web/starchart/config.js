@@ -27,7 +27,9 @@ export default {
     // Used when `fit` is off, and as the starting point for the editor's
     // sliders. Anything dragged overrides both.
     radius: 166.0,
-    gap: 26.0,
+    // With the fit on this is the gap you can see between the two rim bands.
+    // Zero has them touching, which is how the original prints its pair.
+    gap: 0.0,
     // First circle starts this far below the top margin, leaving room for the title.
     top_offset: 92.0,
     // How far past the celestial equator each circle reaches. The original

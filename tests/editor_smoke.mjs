@@ -286,10 +286,12 @@ input.dispatchEvent(new window.Event("change"));
   const top = circles[0].cy - circles[0].r - band;
   const bottom = circles[1].cy + circles[1].r + band;
   const between = (circles[1].cy - circles[1].r - band) - (circles[0].cy + circles[0].r + band);
-  const spacings = [top - titleY, between, capY - bottom];
-  spacings.every((v) => Math.abs(v - spacings[0]) < 0.01)
-    ? ok(`the stack is evenly spaced (${spacings[0].toFixed(1)} mm throughout)`)
-    : fail(`uneven: ${spacings.map((v) => v.toFixed(1)).join(", ")}`);
+  const above = top - titleY, below = capY - bottom;
+  Math.abs(above - below) < 0.01
+    ? ok(`equal clearance above and below (${above.toFixed(1)} mm)`)
+    : fail(`uneven: ${above.toFixed(1)} vs ${below.toFixed(1)}`);
+  Math.abs(between) < 0.01
+    ? ok("the two plates touch") : fail(`gap of ${between.toFixed(1)} mm between them`);
   Math.abs(circles[0].cx - 609.6 / 2) < 0.01 && Math.abs(circles[1].cx - 609.6 / 2) < 0.01
     ? ok("the plates are centred on the sheet") : fail("plates off centre");
   circles[0].r > 190

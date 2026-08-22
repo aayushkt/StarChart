@@ -217,8 +217,9 @@ describe("document", () => {
   });
 
   it("fills the column between the title and the caption", () => {
-    // Equal clearance above, between and below -- the rhythm the sheet is set
-    // to. The degree-scale band counts as part of a plate's extent.
+    // Equal clearance above and below, and whatever gap is asked for between --
+    // zero by default, so the two rims touch. The degree-scale band counts as
+    // part of a plate's extent.
     const band = defaultTheme.plate.scale_band;
     const { hemispheres } = buildChart({
       config: defaultConfig, theme: defaultTheme, data,
@@ -227,14 +228,13 @@ describe("document", () => {
     const [n, s] = hemispheres;
     const titleY = defaultConfig.page.margin + 34;
     const capY = defaultConfig.page.height - defaultConfig.page.margin - 3;
-    const spacings = [
-      (n.cy - n.radius - band) - titleY,
-      (s.cy - s.radius - band) - (n.cy + n.radius + band),
-      capY - (s.cy + s.radius + band),
-    ];
-    for (const v of spacings) {
-      assert.ok(Math.abs(v - defaultConfig.layout.fit_clearance) < 1e-6, `spacing ${v}`);
-    }
+    const above = (n.cy - n.radius - band) - titleY;
+    const between = (s.cy - s.radius - band) - (n.cy + n.radius + band);
+    const below = capY - (s.cy + s.radius + band);
+    assert.ok(Math.abs(above - defaultConfig.layout.fit_clearance) < 1e-6, `above ${above}`);
+    assert.ok(Math.abs(below - defaultConfig.layout.fit_clearance) < 1e-6, `below ${below}`);
+    assert.ok(Math.abs(between - defaultConfig.layout.gap) < 1e-6, `between ${between}`);
+    assert.ok(Math.abs(between) < 1e-6, "the plates should be touching by default");
     assert.equal(n.cx, defaultConfig.page.width / 2);
     assert.equal(s.cx, defaultConfig.page.width / 2);
   });
