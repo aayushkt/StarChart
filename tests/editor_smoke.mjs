@@ -21,6 +21,15 @@ const dom = new JSDOM(fs.readFileSync(path.join(WEB, "index.html"), "utf8"), {
 });
 const { window } = dom;
 
+// The real stylesheet, inlined. Without it getComputedStyle sees nothing, and a
+// panel that never hides because a class rule outranks [hidden] looks perfectly
+// fine to a test that only reads the `hidden` property.
+{
+  const style = window.document.createElement("style");
+  style.textContent = fs.readFileSync(path.join(WEB, "style.css"), "utf8");
+  window.document.head.appendChild(style);
+}
+
 // jsdom does no layout, so every box is 0x0 and the pan/zoom maths degenerates.
 const STAGE = { x: 320, y: 40, width: 900, height: 700 };
 window.Element.prototype.getBoundingClientRect = function () {
@@ -628,8 +637,14 @@ d.querySelector("#reset-layout").click();
                                    : fail("1:1 button still present");
 
   // Calibrating for a denser screen must shrink the on-screen millimetre.
+  const ruler = d.querySelector("#ruler");
+  const rulerOpen = () => window.getComputedStyle(ruler).display !== "none";
+  !rulerOpen() ? ok("the ruler starts closed") : fail("ruler visible before opening");
   chip.click();
-  !d.querySelector("#ruler").hidden ? ok("the ruler opens") : fail("ruler stayed hidden");
+  rulerOpen() ? ok("clicking Calibrate opens it") : fail("ruler did not appear");
+  chip.click();
+  !rulerOpen() ? ok("clicking it again closes it") : fail("ruler would not close");
+  chip.click();
 
   const input = d.querySelector("#ruler-mm");
   const barPx = Number(input.dataset.px);
@@ -643,7 +658,7 @@ d.querySelector("#reset-layout").click();
   input.value = String(measured);
   d.querySelector("#ruler-unit").value = "mm";
   d.querySelector("#ruler-done").click();
-  d.querySelector("#ruler").hidden ? ok("Done closes the panel") : fail("panel stayed open");
+  !rulerOpen() ? ok("Done closes the panel") : fail("panel stayed open");
   zoomLabel() === "100%" ? ok("Done scales to printed size") : fail(`reads ${zoomLabel()}`);
   chip.classList.contains("on") ? ok("the button lights when at printed size")
                                 : fail("button not lit");

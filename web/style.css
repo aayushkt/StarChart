@@ -211,6 +211,10 @@ input[type="range"]::-moz-range-thumb {
   background: var(--bg-raised);
   display: flex; flex-direction: column; gap: 10px;
 }
+/* `display` here outranks the browser's own [hidden] rule -- both are one
+   selector deep, and the author sheet wins the tie -- so hiding has to be said
+   again, more specifically. Without this the panel never closes. */
+.ruler[hidden] { display: none; }
 .ruler p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-dim); max-width: 60ch; }
 .ruler label { font-size: 12px; display: flex; align-items: center; gap: 8px; }
 .ruler input {
