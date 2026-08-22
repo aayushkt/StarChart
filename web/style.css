@@ -200,7 +200,11 @@ input[type="range"]::-moz-range-thumb {
   color: var(--text-dim); background: var(--bg-sunk); border: 1px solid var(--line);
 }
 .chip:hover { color: var(--text); border-color: var(--gold); }
-.chip.on { color: #10222c; background: var(--gold); border-color: var(--gold); }
+/* Filled means the view is at true printed size; outlined means the panel is
+   open. They are different states and look different. */
+.chip.on { color: #10222c; background: #7fb069; border-color: #7fb069; }
+.chip.on::before { content: "● "; }
+.chip.open { color: var(--gold); border-color: var(--gold); }
 
 .ruler {
   padding: 14px 16px; border-bottom: 1px solid var(--line);

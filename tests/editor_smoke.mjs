@@ -623,32 +623,63 @@ d.querySelector("#reset-layout").click();
     const m = /scale\(([\d.]+)\)/.exec(d.querySelector("#chart-wrap").style.transform);
     return 609.6 * +m[1];
   };
-  d.querySelector("#actual-size").click();
-  zoomLabel() === "100%" ? ok("1:1 reads as 100% of printed size")
-                         : fail(`reads ${zoomLabel()}`);
-  // At the nominal 96 px per inch a 609.6 mm sheet is 24 inches, so 2304 px.
-  Math.abs(chartWidthPx() - 24 * 96) < 1
-    ? ok(`1:1 puts the 24-inch sheet at ${Math.round(chartWidthPx())} px (96 dpi nominal)`)
-    : fail(`sheet is ${chartWidthPx().toFixed(0)} px`);
+  const chip = d.querySelector("#calibrate");
+  !d.querySelector("#actual-size") ? ok("the separate 1:1 button is gone")
+                                   : fail("1:1 button still present");
 
   // Calibrating for a denser screen must shrink the on-screen millimetre.
-  d.querySelector("#calibrate").click();
+  chip.click();
   !d.querySelector("#ruler").hidden ? ok("the ruler opens") : fail("ruler stayed hidden");
 
   const input = d.querySelector("#ruler-mm");
-  const nominal = Number(input.dataset.nominal);
-  nominal >= 50 && nominal % 50 === 0
-    ? ok(`the bar is a round ${nominal} mm, sized to the window`)
-    : fail(`nominal is ${nominal}`);
+  const barPx = Number(input.dataset.px);
+  const shown = Number(input.value);
+  barPx > 100 && Math.abs(shown - barPx / (96 / 25.4)) < 0.2
+    ? ok(`the bar is ${barPx} px, which it says is ${shown.toFixed(1)} mm`)
+    : fail(`bar ${barPx} px reported as ${shown} mm`);
 
-  // Report the bar as 20% short, whatever length it was drawn at.
-  input.value = String(nominal * 0.8);
+  // Report the bar as 20% short of what it claims.
+  const measured = shown * 0.8;
+  input.value = String(measured);
   d.querySelector("#ruler-unit").value = "mm";
   d.querySelector("#ruler-done").click();
+  d.querySelector("#ruler").hidden ? ok("Done closes the panel") : fail("panel stayed open");
+  zoomLabel() === "100%" ? ok("Done scales to printed size") : fail(`reads ${zoomLabel()}`);
+  chip.classList.contains("on") ? ok("the button lights when at printed size")
+                                : fail("button not lit");
   const denser = chartWidthPx();
   Math.abs(denser - 24 * 96 * 1.25) < 2
     ? ok(`calibration scales it (now ${Math.round(denser)} px for the same 24 inches)`)
     : fail(`calibration off: ${denser}`);
+
+  /* Repeating the same reading must land on the same number. Sizing the bar in
+   * millimetres drew it through the assumption being calibrated, so each round
+   * moved the ruler too and the scale ran away -- five rounds of one reading
+   * walked 96 dpi to 174, oscillating on the way. */
+  for (let i = 0; i < 4; i++) {
+    d.querySelector("#calibrate").click();
+    d.querySelector("#ruler-mm").value = String(measured);
+    d.querySelector("#ruler-unit").value = "mm";
+    d.querySelector("#ruler-done").click();
+  }
+  Math.abs(chartWidthPx() - denser) < 1
+    ? ok("calibrating five times with one reading does not run away")
+    : fail(`ran away: ${Math.round(denser)} px to ${Math.round(chartWidthPx())} px`);
+
+  // Zooming away from printed size puts the light out again.
+  wheel({ deltaY: -100, ctrlKey: true });
+  !chip.classList.contains("on") && zoomLabel() !== "100%"
+    ? ok(`zooming clears it (now ${zoomLabel()})`) : fail("button stayed lit after zooming");
+  chip.click();
+  d.querySelector("#ruler-done").click();
+  chip.classList.contains("on") ? ok("recalibrating lights it again") : fail("not relit");
+
+  // And the bar now reports the length that was measured.
+  d.querySelector("#calibrate").click();
+  Math.abs(Number(d.querySelector("#ruler-mm").value) - measured) < 0.15
+    ? ok("the bar reports the length it was told it was")
+    : fail(`bar says ${d.querySelector("#ruler-mm").value}, told ${measured}`);
+  d.querySelector("#ruler-done").click();
   zoomLabel() === "100%" ? ok("still reads 100% after calibrating") : fail("readout drifted");
 
   // Reading the bar correctly, in inches, must leave the scale alone -- which

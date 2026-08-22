@@ -781,7 +781,10 @@ function paint() {
   // screen is a millimetre on paper, which is the number that matters here.
   const percent = Math.round((scale / pxPerMm()) * 100);
   document.getElementById("zoom-level").textContent = `${percent}%`;
-  document.getElementById("actual-size")?.classList.toggle("on", percent === 100);
+  // Filled while the view really is at printed size, and only then -- zoom away
+  // and it goes out, which is the signal that what is on screen is no longer
+  // life size.
+  document.getElementById("calibrate")?.classList.toggle("on", percent === 100);
 }
 
 function fit() {
@@ -1139,8 +1142,6 @@ function initViewport() {
 
   el.addEventListener("dblclick", fit);
 
-  document.getElementById("actual-size").addEventListener("click", actualSize);
-
   /* Calibration: draw a bar of a known length at the currently assumed scale,
    * ask how long it really is, and scale the assumption by the ratio.
    *
@@ -1156,18 +1157,26 @@ function initViewport() {
   const unit = document.getElementById("ruler-unit");
   const nominalLabel = document.getElementById("ruler-nominal");
 
-  /** A round number of millimetres that fits across the panel. */
-  const referenceMm = () => {
-    const available = (panel.clientWidth || stage().clientWidth || 800) - 48;
-    return Math.max(50, Math.floor(available / pxPerMm() / 50) * 50);
-  };
+  /* The bar is a fixed number of *pixels*, not a fixed number of millimetres.
+   *
+   * Sizing it in millimetres meant it was drawn through the very assumption
+   * being calibrated: each correction moved the ruler as well as the thing
+   * measured, so repeating it compounded instead of converging -- five rounds
+   * of the same reading walked the scale from 96 dpi to 174 and oscillated on
+   * the way. A bar of fixed pixel width is an object of fixed physical size on
+   * a given screen, so the arithmetic is absolute and measuring twice gives the
+   * same answer twice.
+   */
+  const barPx = () =>
+    Math.max(200, Math.round((panel.clientWidth || stage().clientWidth || 800) - 48));
 
   const showNominal = () => {
-    const mm = referenceMm();
-    input.dataset.nominal = String(mm);
-    bar.style.width = `${mm * pxPerMm()}px`;
+    const px = barPx();
+    const mm = px / pxPerMm();
+    input.dataset.px = String(px);
+    bar.style.width = `${px}px`;
     nominalLabel.textContent =
-      `${mm} mm  ·  ${(mm / 10).toFixed(1)} cm  ·  ${(mm / 25.4).toFixed(2)} inches`;
+      `${mm.toFixed(1)} mm  ·  ${(mm / 10).toFixed(2)} cm  ·  ${(mm / 25.4).toFixed(2)} inches`;
     const u = unit.value;
     input.value = (mm / TO_MM[u]).toFixed(u === "mm" ? 1 : 2);
     input.step = u === "mm" ? 0.5 : u === "cm" ? 0.05 : 0.02;
@@ -1175,7 +1184,7 @@ function initViewport() {
 
   const showRuler = (on) => {
     panel.hidden = !on;
-    document.getElementById("calibrate").classList.toggle("on", on);
+    document.getElementById("calibrate").classList.toggle("open", on);
     if (on) {
       showNominal();
       input.focus();
@@ -1186,10 +1195,13 @@ function initViewport() {
   document.getElementById("calibrate")
     .addEventListener("click", () => showRuler(panel.hidden));
   document.getElementById("ruler-done").addEventListener("click", () => {
-    const nominal = Number(input.dataset.nominal);
+    const px = Number(input.dataset.px);
     const measured = Number(input.value) * TO_MM[unit.value];
-    if (measured > 10 && nominal > 10) {
-      state.dpi = dpi() * (nominal / measured);
+    // Absolute: that many pixels really span that many millimetres, whatever
+    // was believed a moment ago. Clicking Done twice with the same reading
+    // therefore lands on the same number twice.
+    if (measured > 10 && px > 10) {
+      state.dpi = (px / measured) * 25.4;
       remember("starchart.dpi", String(state.dpi));
     }
     showRuler(false);
