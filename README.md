@@ -46,8 +46,8 @@ the same J2000 frame as the star catalogue, the two agree to 0.004° — about
 
 ## The editor
 
-A static page for picking colours, switching features on and off, tuning weights
-and sizes, and sliding the time across the day, with a **Download SVG** button.
+A static page for arranging the poster, picking colours, switching features on
+and off, sliding the time across the day, and downloading the result as SVG.
 
 It is a thin shell over the module — the same code a website imports — so the
 editor is also the proof that the library runs in a browser. There is no
@@ -55,8 +55,76 @@ backend; the only reason a server is involved at all is that browsers refuse to
 `fetch` from `file://`.
 
 Two update paths, deliberately. Colours and weights rewrite the chart's embedded
-stylesheet in place, which is instant. Anything that moves geometry — the time
-slider — re-renders, which measures about 35 ms.
+stylesheet in place, which is instant. Anything that moves geometry re-renders,
+which measures about 35 ms.
+
+### Arranging the poster
+
+**Hold shift.** It outlines every movable thing — the plates, the seven
+diagrams, the title, the caption — and arms dragging. Let go and dragging pans
+again. Layout editing is modal on purpose: without it every drag near a plate is
+a coin toss between moving the poster and moving the view, and the grabbable
+regions are invisible.
+
+**The outline is the hit area.** Drag from anywhere inside it. That matters
+because the diagrams are mostly empty space — hit-testing their own shapes meant
+only the one whose artwork filled its box could be grabbed. Which object a click
+lands on is decided by area, smallest box first, so overlapping objects stay
+reachable: the large one underneath is still clickable everywhere the small one
+is not.
+
+**Drag the corner grip to scale.** Aspect stays locked and the opposite corner
+stays put. A diagram scales its box; the plates scale radius and gap together so
+the pair stays in register; the title and caption scale their type, since text
+has no box of its own.
+
+**Shift-click selects**, and the sidebar narrows to that object — its position
+and size, the features it contains, the colours it uses. **← All controls**
+brings the full panel back.
+
+**The first thing you arrange pins everything else.** The diagram bands hang off
+the lower plate, so moving or scaling the plates used to carry every diagram
+with them. Now any manual change freezes whatever is still following the
+computed arrangement. Overlap is allowed. **Reset layout** restores both kinds
+of layout change — dragged positions and the numbers behind them.
+
+### Printed size
+
+**Calibrate** opens a panel with a bar of a fixed pixel width. Hold a ruler
+against it, say how long it really is in mm, cm or inches, and **Done** closes
+the panel and scales the view so a millimetre on screen is a millimetre on
+paper. The button then lights, and goes out the moment you zoom away — the light
+means "this is life size now", not "you calibrated at some point".
+
+A browser cannot know how large its pixels are: CSS treats an inch as 96 px
+whatever the display does, so the nominal figure is out by 10–30% on most
+hardware. The measurement is remembered.
+
+Two details the arithmetic depends on. The bar is a fixed number of *pixels*,
+not of millimetres — sizing it in millimetres drew it through the very
+assumption being calibrated, so each correction moved the ruler as well as the
+thing measured, and repeating one reading walked the scale away instead of
+converging. And it is as long as the window allows, because the error in reading
+a ruler is roughly constant however carefully you squint, so a longer bar makes
+that error a smaller fraction of the result.
+
+### The default sheet
+
+The plates fill the column the title and caption leave, centred, with equal
+clearance above and below and their rims touching — 24 × 36 inches, a radius of
+172 mm. Switch **Fill the sheet between title and caption** off to set a radius
+and offset by hand; sizing the plates by their grip does that for you, since
+otherwise the radius is derived and the drag would do nothing.
+
+The diagrams start switched off, because with the plates filling the sheet there
+is no room under them. **Layout → Diagrams → Show the diagrams** brings them
+back, to be dragged wherever you want.
+
+Each diagram is styled on its own. Selecting one seeds it a copy of the shared
+defaults, after which its palette, heading, captions and the rule above its
+heading are independent — including whether that rule is drawn at all. The
+overrides are emitted as CSS scoped to the diagram's id, which wins on
+specificity without duplicating the base rules.
 
 ## How it works
 
