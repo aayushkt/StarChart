@@ -19,8 +19,13 @@ export default {
   layout: {
     // North circle on top, south below -- the one structural change from the
     // original, which prints them side by side.
-    // Nothing here is structural -- the editor exposes all of it, and anything
-    // dragged overrides it entirely.
+    // Grow the pair to fill the column between the title and the caption,
+    // centred, with equal clearance above, between and below. Switch it off and
+    // `radius` and `top_offset` below are used as given instead.
+    fit_between_text: true,
+    fit_clearance: 26.0,
+    // Used when `fit` is off, and as the starting point for the editor's
+    // sliders. Anything dragged overrides both.
     radius: 166.0,
     gap: 26.0,
     // First circle starts this far below the top margin, leaving room for the title.
@@ -53,7 +58,11 @@ export default {
     // The ornamental diagrams the original prints around its plates. Each is
     // generated from real figures rather than traced, so the planet sizes and
     // distances are true and the Moon shows the phase on the configured date.
-    enabled: true,
+    // Off by default: with the plates filling the sheet there is no room left
+    // under them, and the diagrams would land on top of the lower one. Switch
+    // them on in Layout > Diagrams and drag them where you want -- overlapping
+    // is allowed.
+    enabled: false,
     // The plates sit close together, as they do on the original, so the
     // diagrams go below them in rows rather than between.
     middle: [],

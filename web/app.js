@@ -165,10 +165,12 @@ const PANEL = [
   },
   {
     title: "Layout", folders: [
-      { title: "The plates", sliders: [
-        { path: "config.layout.radius", label: "Circle radius", min: 60, max: 260, step: 1, unit: "mm" },
+      { title: "The plates", fit: true, sliders: [
+        ...(state.config?.layout?.fit_between_text
+          ? [{ path: "config.layout.fit_clearance", label: "Spacing", min: 0, max: 120, step: 1, unit: "mm" }]
+          : [{ path: "config.layout.radius", label: "Circle radius", min: 60, max: 300, step: 1, unit: "mm" },
+             { path: "config.layout.top_offset", label: "Distance below the title", min: 0, max: 300, step: 1, unit: "mm" }]),
         { path: "config.layout.gap", label: "Gap between them", min: 0, max: 260, step: 1, unit: "mm" },
-        { path: "config.layout.top_offset", label: "Distance below the title", min: 0, max: 220, step: 1, unit: "mm" },
         { path: "config.layout.overlap_deg", label: "Reach past the equator", min: 0, max: 40, step: 0.5, unit: "°" },
         { path: "config.layout.ra_zero_deg", label: "Rotation", min: 0, max: 360, step: 1, unit: "°" },
         { path: "config.layout.hemi_label_deg", label: "Hemisphere label angle", min: -180, max: 180, step: 1, unit: "°" },
@@ -179,7 +181,7 @@ const PANEL = [
         { path: "config.page.margin", label: "Margin", min: 10, max: 120, step: 1, unit: "mm" },
         { path: "config.panels.gutter", label: "Gap between diagrams", min: 0, max: 40, step: 1, unit: "mm" },
       ] },
-      { title: "Diagrams", panels: true },
+      { title: "Diagrams", panelsEnabled: true, panels: true },
     ],
   },
   {
@@ -449,8 +451,11 @@ function selectionPanel(sel) {
           { path: "config.placement.plates.dx", label: "Move across", min: -300, max: 300, step: 1, unit: "mm" },
           { path: "config.placement.plates.dy", label: "Move down", min: -400, max: 400, step: 1, unit: "mm" },
         ] },
-        { title: "Arrangement", sliders: [
-          { path: "config.layout.radius", label: "Radius", min: 40, max: 300, step: 1, unit: "mm" },
+        { title: "Arrangement", fit: true, sliders: [
+          ...(state.config.layout.fit_between_text
+            ? [{ path: "config.layout.fit_clearance", label: "Spacing", min: 0, max: 120, step: 1, unit: "mm" }]
+            : [{ path: "config.layout.radius", label: "Radius", min: 40, max: 300, step: 1, unit: "mm" },
+               { path: "config.layout.top_offset", label: "Distance below the title", min: 0, max: 300, step: 1, unit: "mm" }]),
           { path: "config.layout.gap", label: "Gap between them", min: 0, max: 300, step: 1, unit: "mm" },
           { path: "config.layout.overlap_deg", label: "Reach past the equator", min: 0, max: 40, step: 0.5, unit: "°" },
           { path: "config.layout.ra_zero_deg", label: "Rotation", min: 0, max: 360, step: 1, unit: "°" },
@@ -571,6 +576,24 @@ function diagramRow(name) {
   return wrap;
 }
 
+/** A checkbox bound to a boolean anywhere in the config or theme. */
+function togglePath(path, label) {
+  const wrap = el("label", "check");
+  const input = el("input");
+  input.type = "checkbox";
+  input.checked = Boolean(get(path));
+  input.addEventListener("change", () => {
+    if (isGeometry(path) && !path.startsWith("config.placement")) freezeDerived();
+    set(path, input.checked);
+    if (isGeometry(path)) rerender(); else restyle();
+    buildControls();
+  });
+  wrap.appendChild(input);
+  wrap.appendChild(el("span", "box"));
+  wrap.appendChild(el("span", null, label));
+  return wrap;
+}
+
 function ruleRow(name) {
   const path = `panelStyles.${name}.rule`;
   const wrap = el("label", "check");
@@ -628,6 +651,10 @@ function buildControls() {
       (spec.sliders ?? [])
         .filter((s) => s.path.startsWith("ui.") || hasPath(s.path))
         .forEach((s) => f.body.appendChild(sliderRow(s)));
+      if (spec.fit) f.body.appendChild(togglePath(
+        "config.layout.fit_between_text", "Fill the sheet between title and caption"));
+      if (spec.panelsEnabled) f.body.appendChild(togglePath(
+        "config.panels.enabled", "Show the diagrams"));
       if (spec.panels) panelRows().forEach((row) => f.body.appendChild(row));
       if (spec.diagram) f.body.appendChild(diagramRow(spec.diagram));
       if (spec.rule) f.body.appendChild(ruleRow(spec.rule));
@@ -836,10 +863,21 @@ function commitResize(handle, k, box) {
   const placement = state.config.placement;
 
   if (handle.kind === "plate") {
+    const layout = state.config.layout;
+    const hemi = state.hemispheres[0];
+    // Sizing the plates by hand means taking over from the automatic fit --
+    // otherwise the radius is derived and the drag would do nothing at all.
+    if (layout.fit_between_text) {
+      layout.fit_between_text = false;
+      layout.radius = hemi.radius;
+      layout.gap = state.hemispheres[1].cy - hemi.cy - 2 * hemi.radius;
+      layout.top_offset = hemi.cy - hemi.radius - state.config.page.margin;
+      const at = placement.plates ?? { dx: 0, dy: 0 };
+      placement.plates = { dx: at.dx ?? 0, dy: at.dy ?? 0 };
+    }
     // Radius and gap together, so the pair scales as one assembly. The top of
     // the bounding box does not depend on the radius, but its left edge does,
     // so only the horizontal offset needs correcting to hold the corner still.
-    const layout = state.config.layout;
     const before = layout.radius;
     layout.radius = Math.max(20, before * k);
     layout.gap = Math.max(0, layout.gap * k);

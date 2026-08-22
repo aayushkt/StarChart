@@ -70,7 +70,85 @@ let failed = false;
 const fail = (m) => { console.log("FAIL:", m); failed = true; };
 const ok = (m) => console.log("  ok  ", m);
 
+/* ---------- helpers ----------
+ * All of them here rather than beside their first use: three separate runs of
+ * this file failed on temporal-dead-zone errors as blocks got reordered, which
+ * is a test breaking for its own reasons rather than the code's.
+ */
+
 const chart = () => d.querySelector("#chart-wrap svg");
+const stage = d.querySelector("#stage-scroll");
+const shift = (type) => window.dispatchEvent(new window.KeyboardEvent(type, { key: "Shift" }));
+
+const view = () => {
+  const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/
+    .exec(d.querySelector("#chart-wrap").style.transform);
+  return m ? { tx: +m[1], ty: +m[2], scale: +m[3] } : null;
+};
+
+const wheel = (opts) => stage.dispatchEvent(new window.WheelEvent("wheel",
+  { clientX: 700, clientY: 300, bubbles: true, cancelable: true, ...opts }));
+
+const drag = (target, from, to, id = 1, shiftKey = true) => {
+  target.dispatchEvent(new window.PointerEvent("pointerdown",
+    { button: 0, pointerId: id, clientX: from[0], clientY: from[1], bubbles: true, shiftKey }));
+  stage.dispatchEvent(new window.PointerEvent("pointermove",
+    { pointerId: id, clientX: to[0], clientY: to[1], bubbles: true }));
+  stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: id, bubbles: true }));
+};
+
+const handleFor = (spec) => chart().querySelector(`[data-handle="${spec}"]`);
+
+const toClient = (x, y) => {
+  const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/
+    .exec(d.querySelector("#chart-wrap").style.transform);
+  const [tx, ty, k] = [+m[1], +m[2], +m[3]];
+  return [x * k + tx + STAGE.x, y * k + ty + STAGE.y];
+};
+
+const boxOf = (spec) => {
+  const r = chart().querySelector(`[data-handle="${spec}"] rect`);
+  return { x: +r.getAttribute("x"), y: +r.getAttribute("y"),
+           w: +r.getAttribute("width"), h: +r.getAttribute("height") };
+};
+
+const insideOf = (spec) => {
+  const b = boxOf(spec);
+  return toClient(b.x + b.w * 0.4, b.y + b.h * 0.4);
+};
+
+const gripAt = (spec) => {
+  const b = boxOf(spec);
+  return toClient(b.x + b.w, b.y + b.h);
+};
+
+const nudge = ([x, y], dx, dy) => [x + dx, y + dy];
+
+const gripFor = (spec) => chart().querySelector(`[data-grip="${spec}"]`);
+
+const checkbox = (label) => [...d.querySelectorAll(".check")]
+  .find((c) => c.textContent.trim() === label)?.querySelector("input");
+
+const setChecked = (label, on) => {
+  const input = checkbox(label);
+  if (input && input.checked !== on) {
+    input.checked = on;
+    input.dispatchEvent(new window.Event("change"));
+  }
+};
+
+const resetLayout = () => {
+  // The master switch lives in the global panel, so deselect before looking
+  // for it -- a selection narrows the sidebar to that object alone.
+  d.querySelector(".btn.back")?.click();
+  d.querySelector("#reset-layout").click();
+  setChecked("Show the diagrams", true);
+  // Rebuilding the controls can drop the handle overlay, and every block that
+  // follows a reset needs it back.
+  shift("keydown");
+};
+
+
 chart() ? ok("chart rendered in the browser from the library") : fail("no chart rendered");
 
 // --- panel structure
@@ -98,6 +176,15 @@ const swatches = d.querySelectorAll("input.swatch");
 const sliders = d.querySelectorAll('input[type="range"]');
 swatches.length >= 20 ? ok(`${swatches.length} colour pickers`) : fail(`swatches=${swatches.length}`);
 sliders.length >= 15 ? ok(`${sliders.length} sliders`) : fail(`sliders=${sliders.length}`);
+
+// --- the diagrams start switched off, and can be switched back on
+const diagramsToggle = [...d.querySelectorAll(".check")]
+  .find((c) => c.textContent.trim() === "Show the diagrams")?.querySelector("input");
+diagramsToggle ? ok("the diagrams have a master switch") : fail("no diagrams switch");
+chart().querySelectorAll('g[id^="panel-"]:not([id^="panel-clip"])').length === 0
+  ? ok("they start off, since the plates fill the sheet") : fail("diagrams drawn by default");
+diagramsToggle.checked = true;
+diagramsToggle.dispatchEvent(new window.Event("change"));
 
 // --- restyling happens in place, without re-rendering
 const styleText = () => chart().querySelector("style").textContent;
@@ -148,8 +235,14 @@ labelSlider.dispatchEvent(new window.Event("input"));
   ? ok("tropics, ecliptic and colures are separate layers") : fail("reference layers missing");
 
 // --- layout controls change geometry, not just style
-const radius = [...sliders].find((s) => s.dataset.path === "config.layout.radius");
-radius ? ok("layout controls present") : fail("no layout sliders");
+const fitToggle = [...d.querySelectorAll(".check")]
+  .find((c) => c.textContent.includes("Fill the sheet"))?.querySelector("input");
+fitToggle ? ok("the fill-the-sheet mode has a toggle") : fail("no fit toggle");
+fitToggle.checked = false;
+fitToggle.dispatchEvent(new window.Event("change"));
+const radius = [...d.querySelectorAll('input[type="range"]')]
+  .find((s) => s.dataset.path === "config.layout.radius");
+radius ? ok("switching the fit off exposes the radius slider") : fail("no radius slider");
 const plateRadius = () => chart().querySelector("#layer-plate circle").getAttribute("r");
 const r0 = plateRadius();
 radius.value = "120";
@@ -175,6 +268,34 @@ panelIds().length === allPanels.length - 1
   ? ok("switching a diagram off re-renders the band") : fail("diagram not removed");
 input.checked = true;
 input.dispatchEvent(new window.Event("change"));
+
+// --- the plates fill the column between the title and the caption
+{
+  // Set up rather than inherit: an earlier check switches the fit off.
+  const toggle = [...d.querySelectorAll(".check")]
+    .find((c) => c.textContent.includes("Fill the sheet")).querySelector("input");
+  if (!toggle.checked) { toggle.checked = true; toggle.dispatchEvent(new window.Event("change")); }
+  setChecked("Show the diagrams", true);
+
+  const band = 11;   // theme.plate.scale_band
+  const circles = [...chart().querySelectorAll("#layer-plate circle")]
+    .map((c) => ({ cy: +c.getAttribute("cy"), r: +c.getAttribute("r"),
+                   cx: +c.getAttribute("cx") }));
+  const titleY = +chart().querySelector("#layer-title text").getAttribute("y");
+  const capY = +chart().querySelector("#layer-caption text").getAttribute("y");
+  const top = circles[0].cy - circles[0].r - band;
+  const bottom = circles[1].cy + circles[1].r + band;
+  const between = (circles[1].cy - circles[1].r - band) - (circles[0].cy + circles[0].r + band);
+  const spacings = [top - titleY, between, capY - bottom];
+  spacings.every((v) => Math.abs(v - spacings[0]) < 0.01)
+    ? ok(`the stack is evenly spaced (${spacings[0].toFixed(1)} mm throughout)`)
+    : fail(`uneven: ${spacings.map((v) => v.toFixed(1)).join(", ")}`);
+  Math.abs(circles[0].cx - 609.6 / 2) < 0.01 && Math.abs(circles[1].cx - 609.6 / 2) < 0.01
+    ? ok("the plates are centred on the sheet") : fail("plates off centre");
+  circles[0].r > 190
+    ? ok(`the plates grew to fill it (r ${circles[0].r.toFixed(1)} mm)`)
+    : fail(`plates only ${circles[0].r} mm`);
+}
 
 // --- the time slider re-renders the geometry
 const timeSlider = [...sliders].find((s) => s.closest(".section")
@@ -207,14 +328,6 @@ markerAt("sun") !== sun0 ? ok("Sun moves with the time") : fail("Sun did not mov
   ? ok("caption follows the time") : fail("caption not updated");
 
 // --- pan and zoom
-const stage = d.querySelector("#stage-scroll");
-const view = () => {
-  const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/
-    .exec(d.querySelector("#chart-wrap").style.transform);
-  return m ? { tx: +m[1], ty: +m[2], scale: +m[3] } : null;
-};
-const wheel = (opts) => stage.dispatchEvent(new window.WheelEvent("wheel",
-  { clientX: 700, clientY: 300, bubbles: true, cancelable: true, ...opts }));
 
 const fitted = view();
 fitted ? ok(`fits at ${fitted.scale.toFixed(3)}×`) : fail("no transform applied");
@@ -234,15 +347,7 @@ const panned = view();
 (panned.ty < beforePan.ty && panned.tx < beforePan.tx && panned.scale === beforePan.scale)
   ? ok("two-finger scroll pans without zooming") : fail("scroll did not pan");
 
-// Dragging the paper itself pans; dragging an object moves the object.
 const dragFrom = view();
-const drag = (target, from, to, id = 1, shiftKey = true) => {
-  target.dispatchEvent(new window.PointerEvent("pointerdown",
-    { button: 0, pointerId: id, clientX: from[0], clientY: from[1], bubbles: true, shiftKey }));
-  stage.dispatchEvent(new window.PointerEvent("pointermove",
-    { pointerId: id, clientX: to[0], clientY: to[1], bubbles: true }));
-  stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: id, bubbles: true }));
-};
 stage.dispatchEvent(new window.PointerEvent("pointerdown",
   { button: 0, pointerId: 1, clientX: 500, clientY: 300, bubbles: true }));
 stage.dispatchEvent(new window.PointerEvent("pointermove",
@@ -262,7 +367,7 @@ const panelX = () => Number(
   chart().querySelector('[data-drag="panel:solar-eclipse"] rect')?.getAttribute("x") ?? NaN);
 
 // --- layout editing is modal: nothing moves unless shift is held
-const shift = (type) => window.dispatchEvent(new window.KeyboardEvent(type, { key: "Shift" }));
+setChecked("Show the diagrams", true);
 shift("keydown");
 chart().querySelector("#layer-handles")
   ? ok("shift shows the layout handles") : fail("no handles on shift");
@@ -273,33 +378,6 @@ shift("keyup");
 !chart().querySelector("#layer-handles")
   ? ok("releasing shift hides them") : fail("handles stuck on");
 
-const handleFor = (spec) => chart().querySelector(`[data-handle="${spec}"]`);
-
-/* Selection is geometric now, so a test click has to land inside the target's
- * box. Convert chart millimetres to client pixels through the stage transform. */
-const toClient = (x, y) => {
-  const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([\d.]+)\)/
-    .exec(d.querySelector("#chart-wrap").style.transform);
-  const [tx, ty, k] = [+m[1], +m[2], +m[3]];
-  return [x * k + tx + STAGE.x, y * k + ty + STAGE.y];
-};
-const boxOf = (spec) => {
-  const r = chart().querySelector(`[data-handle="${spec}"] rect`);
-  return { x: +r.getAttribute("x"), y: +r.getAttribute("y"),
-           w: +r.getAttribute("width"), h: +r.getAttribute("height") };
-};
-/** A point inside an object, biased away from its corner grip. */
-const insideOf = (spec) => {
-  const b = boxOf(spec);
-  return toClient(b.x + b.w * 0.4, b.y + b.h * 0.4);
-};
-/** The middle of an object's resize grip. */
-const gripAt = (spec) => {
-  const b = boxOf(spec);
-  return toClient(b.x + b.w, b.y + b.h);
-};
-const nudge = ([x, y], dx, dy) => [x + dx, y + dy];
-const gripFor = (spec) => chart().querySelector(`[data-grip="${spec}"]`);
 
 // Every diagram must be grabbable, not just the one whose artwork happens to
 // cover its box. The handle is the hit area precisely because the diagrams are
@@ -382,6 +460,7 @@ for (const name of ["title", "caption"]) {
 
 // --- scaling one thing leaves everything else alone
 {
+  shift("keydown");
   const otherBefore = boxOf("panel:moon-illumination");
   const pGrip0 = gripAt("panel:solar-system");
   drag(gripFor("panel:solar-system"), pGrip0, nudge(pGrip0, 50, 30), 30);
@@ -401,11 +480,12 @@ for (const name of ["title", "caption"]) {
     ? ok("scaling the plates leaves the diagrams where they are")
     : fail(`diagram moved: ${JSON.stringify(diagramBefore)} -> ${JSON.stringify(diagramAfter)}`);
 
-  d.querySelector("#reset-layout").click();
+  resetLayout();
 }
 
 // --- overlapping objects: the smallest box wins, not the topmost
 {
+  shift("keydown");
   const plates = boxOf("plate:plates");
   // Put a diagram inside the plates' box so the two genuinely overlap.
   const at = insideOf("panel:magnitude-key");
@@ -421,10 +501,11 @@ for (const name of ["title", "caption"]) {
   titles[0] === "Magnitude key"
     ? ok("clicking overlapping objects selects the smaller one")
     : fail(`selected ${JSON.stringify(titles)} instead of the diagram`);
-  d.querySelector("#reset-layout").click();
+  resetLayout();
 }
 
 // --- corner grips resize, aspect locked, anchored at the opposite corner
+shift("keydown");
 chart().querySelectorAll("[data-grip]").length === 10
   ? ok("every handle has a resize grip") : fail("grips missing");
 
@@ -467,7 +548,7 @@ titleSize() > sizeBefore
   ? ok(`grip scales the title type (${sizeBefore} to ${titleSize()} mm)`)
   : fail("title type did not scale");
 
-d.querySelector("#reset-layout").click();
+resetLayout();
 
 // Shift-clicking selects, and the sidebar narrows to what is selected.
 const sectionTitles = () =>

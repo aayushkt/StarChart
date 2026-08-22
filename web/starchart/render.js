@@ -157,15 +157,45 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
     `</g>`);
 
   const titleAt = placed.texts?.title ?? {};
+  const titleBaseline = titleAt.y ?? page.margin + 34;
   body.push(`<g id="layer-title" data-drag="text:title">` +
-    svg.text(titleAt.x ?? page.width / 2, titleAt.y ?? page.margin + 34, config.title,
+    svg.text(titleAt.x ?? page.width / 2, titleBaseline, config.title,
       { class_: "title" }) + `</g>`);
+
+  /* "between-text" sizes the pair to fill the column the title and caption
+   * leave, with equal clearance above and below, and centres it on the sheet.
+   * The radius is whatever fits -- limited by that column, or by the sheet's
+   * width, whichever runs out first. */
+  let radius = layout.radius;
+  let plateGap = layout.gap;
+  let plateTop = page.margin + layout.top_offset;
+  if (layout.fit_between_text) {
+    const clearance = layout.fit_clearance ?? 26;
+    const capY = observer
+      ? (placed.texts?.caption?.y ?? page.height - page.margin - 3)
+      : page.height - page.margin;
+    // The degree-scale band sits outside the plate radius, so it counts toward
+    // the space used -- sizing on the radius alone eats into the clearance.
+    // The degree-scale band sits outside the plate radius, so it counts toward
+    // the space used -- sizing on the radius alone eats into the clearance. In
+    // this mode `gap` is the gap you can see between the two bands, not the
+    // distance between the circles inside them, so the slider means what it
+    // looks like.
+    const band = theme.plate.scale_band ?? 0;
+    const column = (capY - clearance) - (titleBaseline + clearance);
+    const byHeight = (column - layout.gap - 4 * band) / 4;
+    const byWidth = (page.width - 2 * page.margin) / 2 - band;
+    radius = Math.max(20, Math.min(byHeight, byWidth));
+    plateGap = layout.gap + 2 * band;
+    const slack = column - (4 * radius + plateGap + 2 * band);
+    plateTop = titleBaseline + clearance + band + slack / 2;
+  }
 
   let [north, south] = stackedPair({
     width: page.width,
-    topY: page.margin + layout.top_offset,
-    radius: layout.radius,
-    gap: layout.gap,
+    topY: plateTop,
+    radius,
+    gap: plateGap,
     overlapDeg: layout.overlap_deg,
     raZeroDeg: layout.ra_zero_deg,
   });
@@ -280,7 +310,7 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   }
 
   const textBoxes = [
-    { name: "title", x: titleAt.x ?? page.width / 2, y: titleAt.y ?? page.margin + 34,
+    { name: "title", x: titleAt.x ?? page.width / 2, y: titleBaseline,
       size: ty.title_size, label: "TITLE" },
   ];
   if (observer) {

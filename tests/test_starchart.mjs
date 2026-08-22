@@ -203,11 +203,40 @@ describe("document", () => {
     assert.ok(!markup.includes("<![CDATA["));
   });
 
-  it("draws every diagram once", () => {
-    const ids = [...markup.matchAll(/id="(panel-[a-z-]+)"/g)]
+  it("draws every diagram once, when they are switched on", () => {
+    // Off by default: with the plates filling the sheet there is no room under
+    // them. Ask for them explicitly.
+    const { markup: withPanels } = buildChart({
+      config: { ...defaultConfig, panels: { ...defaultConfig.panels, enabled: true } },
+      theme: defaultTheme, data, observer: makeObserver(defaultConfig),
+    });
+    const ids = [...withPanels.matchAll(/id="(panel-[a-z-]+)"/g)]
       .map((m) => m[1]).filter((id) => !id.startsWith("panel-clip"));
     assert.equal(ids.length, new Set(ids).size, "a diagram was emitted twice");
     assert.equal(ids.length, 7);
+  });
+
+  it("fills the column between the title and the caption", () => {
+    // Equal clearance above, between and below -- the rhythm the sheet is set
+    // to. The degree-scale band counts as part of a plate's extent.
+    const band = defaultTheme.plate.scale_band;
+    const { hemispheres } = buildChart({
+      config: defaultConfig, theme: defaultTheme, data,
+      observer: makeObserver(defaultConfig),
+    });
+    const [n, s] = hemispheres;
+    const titleY = defaultConfig.page.margin + 34;
+    const capY = defaultConfig.page.height - defaultConfig.page.margin - 3;
+    const spacings = [
+      (n.cy - n.radius - band) - titleY,
+      (s.cy - s.radius - band) - (n.cy + n.radius + band),
+      capY - (s.cy + s.radius + band),
+    ];
+    for (const v of spacings) {
+      assert.ok(Math.abs(v - defaultConfig.layout.fit_clearance) < 1e-6, `spacing ${v}`);
+    }
+    assert.equal(n.cx, defaultConfig.page.width / 2);
+    assert.equal(s.cx, defaultConfig.page.width / 2);
   });
 
   it("uses true relative sizes and distances in the diagrams", async () => {
