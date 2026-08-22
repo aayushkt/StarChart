@@ -28,7 +28,20 @@
 <main class="stage">
   <div class="stage-bar">
     <p class="hint">Hold <kbd>shift</kbd> to move plates and diagrams · drag to pan · pinch to zoom</p>
-    <p class="dims"><span id="zoom-level">100%</span><span id="dims"></span></p>
+    <p class="dims">
+      <button id="actual-size" class="chip" title="Show the poster at its printed size">1:1</button>
+      <button id="calibrate" class="chip" title="Match the screen to a real ruler">Calibrate</button>
+      <span id="zoom-level">100%</span><span id="dims"></span>
+    </p>
+  </div>
+  <div class="ruler" id="ruler" hidden>
+    <p>Hold a ruler against the bar below and type how long it really is.
+       Screens report a nominal 96 pixels per inch, which is rarely the truth.</p>
+    <div class="ruler-bar"><span id="ruler-bar"></span></div>
+    <label>Measured length
+      <input type="number" id="ruler-mm" min="10" max="400" step="0.5"> mm
+    </label>
+    <button id="ruler-done" class="btn">Done</button>
   </div>
   <div class="stage-scroll" id="stage-scroll">
     <div class="chart-wrap" id="chart-wrap"></div>

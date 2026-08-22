@@ -45,7 +45,8 @@ window.Element.prototype.releasePointerCapture ||= function () {};
 
 // Publish the browser globals the module expects, then serve its data from disk.
 for (const key of ["window", "document", "Element", "Event", "WheelEvent",
-                   "PointerEvent", "MouseEvent", "Blob", "Node", "SVGElement"]) {
+                   "PointerEvent", "MouseEvent", "Blob", "Node", "SVGElement",
+                   "localStorage", "KeyboardEvent"]) {
   globalThis[key] = window[key];
 }
 globalThis.URL.createObjectURL ||= () => "blob:test";
@@ -609,6 +610,36 @@ restoredTitles.includes("Colours") && restoredTitles.includes("Layout") &&
 shift("keyup");
 
 d.querySelector("#reset-layout").click();
+
+// --- printed size
+{
+  const zoomLabel = () => d.querySelector("#zoom-level").textContent;
+  const chartWidthPx = () => {
+    const m = /scale\(([\d.]+)\)/.exec(d.querySelector("#chart-wrap").style.transform);
+    return 609.6 * +m[1];
+  };
+  d.querySelector("#actual-size").click();
+  zoomLabel() === "100%" ? ok("1:1 reads as 100% of printed size")
+                         : fail(`reads ${zoomLabel()}`);
+  // At the nominal 96 px per inch a 609.6 mm sheet is 24 inches, so 2304 px.
+  Math.abs(chartWidthPx() - 24 * 96) < 1
+    ? ok(`1:1 puts the 24-inch sheet at ${Math.round(chartWidthPx())} px (96 dpi nominal)`)
+    : fail(`sheet is ${chartWidthPx().toFixed(0)} px`);
+
+  // Calibrating for a denser screen must shrink the on-screen millimetre.
+  d.querySelector("#calibrate").click();
+  !d.querySelector("#ruler").hidden ? ok("the ruler opens") : fail("ruler stayed hidden");
+  d.querySelector("#ruler-mm").value = "80";      // the bar measured short
+  d.querySelector("#ruler-done").click();
+  const denser = chartWidthPx();
+  denser > 24 * 96 * 1.2
+    ? ok(`calibration scales it (now ${Math.round(denser)} px for the same 24 inches)`)
+    : fail(`calibration did nothing: ${denser}`);
+  zoomLabel() === "100%" ? ok("still reads 100% after calibrating") : fail("readout drifted");
+  Number(localStorage.getItem("starchart.dpi")) > 96
+    ? ok("the measurement is remembered") : fail("calibration not stored");
+  localStorage.removeItem("starchart.dpi");
+}
 
 d.querySelectorAll("[data-zoom]").length === 0
   ? ok("zoom buttons removed") : fail("zoom buttons still present");

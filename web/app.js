@@ -28,6 +28,7 @@ const state = {
         hidden: new Set() },
   view: { scale: 1, tx: 0, ty: 0 },
   fitted: true,
+  dpi: 96,   // nominal until loadCalibration() reads a measured value
   editing: false,
   panelsOff: new Set(),
   allPanels: { middle: [], rows: [] },
@@ -59,6 +60,13 @@ function applyLayerVisibility() {
   }
 }
 
+function updateDims() {
+  const { width, height } = state.config.page;
+  const inches = (mm) => (mm / 25.4).toFixed(mm / 25.4 % 1 < 0.05 ? 0 : 1);
+  document.getElementById("dims").textContent =
+    `${Math.round(width)} × ${Math.round(height)} mm · ${inches(width)}″ × ${inches(height)}″`;
+}
+
 function rerender() {
   const observer = state.observer ? atMinutes(state.observer, state.ui.minutes) : null;
   const keep = (names) => names.filter((n) => !state.panelsOff.has(n));
@@ -83,6 +91,7 @@ function rerender() {
   state.svg.style.width = `${state.svg.viewBox.baseVal.width}px`;
   applyLayerVisibility();
   drawHandles();
+  updateDims();
   paint();
 }
 
@@ -725,11 +734,54 @@ function clamp(view) {
   return view;
 }
 
+/* ---------- printed size ----------
+ *
+ * A browser has no idea how large its pixels really are: CSS treats an inch as
+ * 96 px whatever the display actually does, so on most hardware "1 inch" of CSS
+ * is not an inch. The nominal value is the starting point and the ruler
+ * calibrates it against a real one. Millimetres are the chart's own units, so
+ * once the screen's true pixels-per-inch is known, scale is just a conversion.
+ */
+
+const NOMINAL_DPI = 96;
+const dpi = () => state.dpi || NOMINAL_DPI;
+const pxPerMm = () => dpi() / 25.4;
+
+/** Storage is unavailable in some privacy modes, and throws rather than
+ *  returning null, so every access is guarded. */
+const remember = (key, value) => {
+  try { localStorage.setItem(key, value); } catch { /* not fatal */ }
+};
+const recall = (key) => {
+  try { return localStorage.getItem(key); } catch { return null; }
+};
+
+function loadCalibration() {
+  const saved = Number(recall("starchart.dpi"));
+  state.dpi = Number.isFinite(saved) && saved > 20 ? saved : NOMINAL_DPI;
+}
+
+function actualSize() {
+  const box = stage().getBoundingClientRect();
+  const { w, h } = contentSize();
+  state.view = {
+    scale: pxPerMm(),
+    tx: (box.width - w * pxPerMm()) / 2,
+    ty: (box.height - h * pxPerMm()) / 2,
+  };
+  state.fitted = false;
+  clamp(state.view);
+  paint();
+}
+
 function paint() {
   const { scale, tx, ty } = state.view;
   wrap().style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-  document.getElementById("zoom-level").textContent =
-    `${Math.round((scale / fitScale()) * 100)}%`;
+  // Percentage of printed size, not of the fitted view: at 100% a millimetre on
+  // screen is a millimetre on paper, which is the number that matters here.
+  const percent = Math.round((scale / pxPerMm()) * 100);
+  document.getElementById("zoom-level").textContent = `${percent}%`;
+  document.getElementById("actual-size")?.classList.toggle("on", percent === 100);
 }
 
 function fit() {
@@ -1087,6 +1139,37 @@ function initViewport() {
 
   el.addEventListener("dblclick", fit);
 
+  document.getElementById("actual-size").addEventListener("click", actualSize);
+
+  /* Calibration: draw a bar of a known length in millimetres at the current
+   * assumed scale, ask how long it really is, and scale the assumption by the
+   * ratio. */
+  const REFERENCE_MM = 100;
+  const panel = document.getElementById("ruler");
+  const bar = document.getElementById("ruler-bar");
+  const input = document.getElementById("ruler-mm");
+
+  const showRuler = (on) => {
+    panel.hidden = !on;
+    document.getElementById("calibrate").classList.toggle("on", on);
+    if (on) {
+      bar.style.width = `${REFERENCE_MM * pxPerMm()}px`;
+      input.value = REFERENCE_MM;
+      input.focus();
+    }
+  };
+  document.getElementById("calibrate")
+    .addEventListener("click", () => showRuler(panel.hidden));
+  document.getElementById("ruler-done").addEventListener("click", () => {
+    const measured = Number(input.value);
+    if (measured > 10) {
+      state.dpi = dpi() * (REFERENCE_MM / measured);
+      remember("starchart.dpi", String(state.dpi));
+    }
+    showRuler(false);
+    actualSize();
+  });
+
   /* Shift reveals the boxes and arms the drag. Tracked on the window so the
    * outlines appear wherever the pointer happens to be. */
   const setEditing = (on) => {
@@ -1165,9 +1248,9 @@ async function boot() {
   state.ui.labelBucket = loaded.theme.labels.mag_bucket;
   if (state.observer) state.ui.minutes = state.observer.minutes;
 
+  loadCalibration();
   rerender();
-  document.getElementById("dims").textContent =
-    `${Math.round(state.config.page.width)} × ${Math.round(state.config.page.height)} mm`;
+  updateDims();
 
   buildControls();
   initViewport();

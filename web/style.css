@@ -194,6 +194,34 @@ input[type="range"]::-moz-range-thumb {
   padding: 1px 4px; border-radius: 3px;
   background: var(--bg-sunk); border: 1px solid var(--line); color: var(--text);
 }
+.chip {
+  padding: 3px 8px; cursor: pointer; border-radius: 3px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em;
+  color: var(--text-dim); background: var(--bg-sunk); border: 1px solid var(--line);
+}
+.chip:hover { color: var(--text); border-color: var(--gold); }
+.chip.on { color: #10222c; background: var(--gold); border-color: var(--gold); }
+
+.ruler {
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+  background: var(--bg-raised);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ruler p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-dim); max-width: 60ch; }
+.ruler label { font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.ruler input {
+  width: 80px; padding: 4px 6px; font-family: var(--mono); font-size: 12px;
+  color: var(--text); background: var(--bg-sunk);
+  border: 1px solid var(--line); border-radius: 3px;
+}
+.ruler .btn { flex: none; align-self: flex-start; }
+.ruler-bar { height: 16px; display: flex; align-items: center; }
+.ruler-bar span {
+  display: block; height: 12px;
+  border-left: 2px solid var(--gold); border-right: 2px solid var(--gold);
+  border-bottom: 2px solid var(--gold);
+}
+
 .dims { margin: 0; display: flex; gap: 14px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
 .dims #zoom-level { color: var(--text); min-width: 44px; text-align: right; }
 
