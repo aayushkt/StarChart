@@ -7,12 +7,10 @@ export default {
   title: "CELESTIAL CHART",
 
   page: {
-    // 24 x 42 inches, in millimetres. SVG user units are millimetres throughout,
-    // so the file carries its real print size. Taller than the original sheet
-    // because stacking the plates vertically leaves nowhere for the diagrams to
-    // go except below them.
+    // 24 x 36 inches, in millimetres. SVG user units are millimetres throughout,
+    // so the file carries its real print size.
     width: 609.6,
-    height: 1066.8,
+    height: 914.4,
     margin: 46.0,
   },
 
