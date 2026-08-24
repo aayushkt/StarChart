@@ -616,6 +616,7 @@ function ruleRow(name) {
 
 function buildControls() {
   const host = document.getElementById("controls");
+  const scrolled = host.scrollTop;
   host.textContent = "";
   const labels = LAYER_LABELS();
 
@@ -666,6 +667,7 @@ function buildControls() {
     }
     if (sec.body.children.length) host.appendChild(sec.root);
   }
+  host.scrollTop = scrolled;
 }
 
 function hasPath(path) {
@@ -771,6 +773,14 @@ function actualSize() {
 
 function paint() {
   const { scale, tx, ty } = state.view;
+  // Belt and braces with overflow-anchor: if anything has scrolled this box,
+  // the transform below would be measured from the wrong origin and the canvas
+  // would sit off-screen with no scrollbar to recover it.
+  const el = stage();
+  if (el.scrollTop || el.scrollLeft) {
+    el.scrollTop = 0;
+    el.scrollLeft = 0;
+  }
   wrap().style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
   // Percentage of printed size, not of the fitted view: at 100% a millimetre on
   // screen is a millimetre on paper, which is the number that matters here.

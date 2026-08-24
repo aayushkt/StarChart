@@ -215,8 +215,21 @@ const diagramsToggle = [...d.querySelectorAll(".check")]
 diagramsToggle ? ok("the diagrams have a master switch") : fail("no diagrams switch");
 chart().querySelectorAll('g[id^="panel-"]:not([id^="panel-clip"])').length === 0
   ? ok("they start off, since the plates fill the sheet") : fail("diagrams drawn by default");
-diagramsToggle.checked = true;
-diagramsToggle.dispatchEvent(new window.Event("change"));
+// Switching them on must not move the canvas. The stage is overflow:hidden
+// with the chart positioned by a transform, so a stray scrollTop -- which is
+// what scroll anchoring produces when content changes -- leaves the canvas
+// jammed off-screen with no scrollbar to recover it.
+{
+  const before = d.querySelector("#chart-wrap").style.transform;
+  stage.scrollTop = 120;                       // as a browser might
+  diagramsToggle.checked = true;
+  diagramsToggle.dispatchEvent(new window.Event("change"));
+  d.querySelector("#chart-wrap").style.transform === before
+    ? ok("switching the diagrams on leaves the view alone")
+    : fail("the view moved");
+  stage.scrollTop === 0
+    ? ok("a stray scroll on the stage is undone") : fail(`stage scrollTop ${stage.scrollTop}`);
+}
 
 // --- restyling happens in place, without re-rendering
 const styleText = () => chart().querySelector("style").textContent;

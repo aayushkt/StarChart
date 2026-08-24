@@ -144,7 +144,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Checkbox styled as a small plate, matching the subject. */
-.check { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.check { position: relative; display: flex; align-items: center; gap: 9px; cursor: pointer; }
 .check input { position: absolute; opacity: 0; pointer-events: none; }
 .box {
   width: 15px; height: 15px; flex: none;
@@ -252,6 +252,12 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
   cursor: grab;
   touch-action: none;
+  /* The chart is positioned by a transform, so this box should never scroll.
+     It still can: browsers adjust scrollTop of the nearest scroller when
+     content changes above the viewport -- scroll anchoring -- and switching the
+     diagrams on is exactly that. With overflow hidden there is no scrollbar to
+     put it back, so the whole canvas jumps up and stays there. */
+  overflow-anchor: none;
 }
 .stage-scroll.dragging { cursor: grabbing; }
 .stage-scroll.moving { cursor: grabbing; }
