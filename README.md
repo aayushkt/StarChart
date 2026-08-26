@@ -165,26 +165,59 @@ silently drops `textPath`, which would mean labels vanishing with no error.
 ### Layout
 
 ```
-starchart/
-  projection.py   azimuthal equidistant, N and S hemispheres
-  catalog.py      star / name / Milky Way / constellation loading
-  lettering.py    text set along an arc, glyph by glyph
-  horizon.py      the observer's horizon as a computed curve
-  overlay.py      the date-and-place overlay
-  reference.py    ecliptic, tropics, polar circles, colures
-  labels.py       collision-avoiding label placement
-  bodies.py       Sun and Moon: positions, day circles, phase
-  style.py        the stylesheet embedded in the SVG
-  svg.py          minimal dependency-free SVG writer
-  render.py       assembly
-  dev.py          render + serve the editor
-web/starchart/    the browser library (ES modules, no build step)
-  data/           trimmed catalogues, built by scripts/
+web/starchart/    the library — ES modules, no build step
+  projection.js   azimuthal equidistant, N and S hemispheres
+  horizon.js      the observer's horizon as a computed curve
+  bodies.js       Sun and Moon: positions, day circles, phase
+  reference.js    ecliptic, tropics, polar circles, colures
+  labels.js       collision-avoiding label placement
+  lettering.js    text set along an arc, glyph by glyph
+  sketch.js       drawing a line the way a hand would
+  panels.js       the seven diagrams, and the pen they draw through
+  overlay.js      the date-and-place overlay
+  style.js        the stylesheet embedded in the SVG
+  svg.js          minimal SVG writer
+  render.js       assembly
+  config.js       what to draw
+  themes/         how it looks — portolan.js, cavallini.js
+  data/           trimmed catalogues, built by scripts/build-data.mjs
   vendor/         astronomy-engine (MIT)
 web/              the editor: index.html, app.js, style.css
-themes/           visual themes
-data/d3-celestial/  vendored catalogues (BSD-3, see NOTICE)
+scripts/          build-data, dev server, rebaseline
+data/d3-celestial/  upstream catalogues (BSD-3, see NOTICE)
 ```
+
+### Sheets and palettes
+
+A **sheet** is the whole design: how much of a hand it is drawn with, whether
+the paper has tooth, the line weights, the type sizes. A **palette** is only
+colour. Between the two sheets that ship, 44 colours differ and so do ten other
+values — `panels.hand` among them — which is why swapping sheets does more than
+repaint.
+
+`portolan.js` is ink on aged parchment, drawn by hand. `cavallini.js` is the
+printed lithograph the project started from: pale sage, petrol blue, and every
+line ruled. Palettes can be saved from whatever colours are on screen; a palette
+is every colour-valued leaf in a theme, gathered automatically rather than
+listed by hand, so a colour added later is captured without anyone remembering.
+
+### Drawing by hand
+
+Above `hand: 0` the diagrams stop being ruled. Lines bow and are gone over
+twice; circles wobble on a few sine terms at random phase, because a hand drifts
+smoothly and per-point noise looks like a machine imitating one; and filled
+shapes become an outline with hatching inside. That last one carries most of it
+— wobbling the outline of a flat fill just gives a wobbly flat fill, and flat
+fill is most of what reads as machine-made.
+
+The randomness is seeded from each shape's own coordinates, so the same chart
+drawn twice is identical byte for byte. Unseeded, nudging a slider would
+reshuffle every line on the sheet.
+
+It is all ordinary path data — no filters, no raster — so it prints at whatever
+resolution the printer has. A displacement filter would have been ten lines
+instead of a module, and would have rasterised the poster and wobbled the type
+along with everything else.
 
 ## Tests
 
