@@ -247,6 +247,15 @@ const PANEL = [
         { path: "config.layout.ra_zero_deg", label: "Rotation", min: 0, max: 360, step: 1, unit: "°" },
         { path: "config.layout.hemi_label_deg", label: "Hemisphere label angle", min: -180, max: 180, step: 1, unit: "°" },
       ] },
+      { title: "Paper", sliders: [
+        { path: "page.age.stain", label: "Staining", min: 0, max: 1.2, step: 0.02, unit: "" },
+        { path: "page.age.tooth", label: "Tooth", min: 0, max: 0.6, step: 0.01, unit: "" },
+        { path: "page.age.wear", label: "Edge wear", min: 0, max: 0.8, step: 0.02, unit: "" },
+        { path: "page.age.wear_start", label: "Wear reaches in to", min: 0, max: 90, step: 1, unit: "%" },
+      ], colors: [
+        ["page.background", "Paper"],
+        ["page.age.colour", "Stain"],
+      ] },
       { title: "The sheet", sliders: [
         { path: "config.page.width", label: "Page width", min: 200, max: 1200, step: 5, unit: "mm" },
         { path: "config.page.height", label: "Page height", min: 300, max: 1600, step: 5, unit: "mm" },

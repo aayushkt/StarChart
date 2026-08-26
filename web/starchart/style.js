@@ -76,8 +76,10 @@ export function stylesheet(theme, ui = {}) {
 
   const rules = [
     `.page-bg{fill:${pg.background}}`,
-    `.page-grain{opacity:${n(pg.grain ?? 0)};mix-blend-mode:multiply}`,
-    `.page-stain{opacity:${n(pg.stain ?? 0)};mix-blend-mode:multiply}`,
+    `.age-blotch{opacity:${n((pg.age?.stain ?? 0) * 1.0)}}`,
+    `.age-mottle{opacity:${n((pg.age?.stain ?? 0) * 0.75)}}`,
+    `.age-tooth{opacity:${n(pg.age?.tooth ?? 0)}}`,
+    `.age-wear{opacity:${n(pg.age?.wear ?? 0)}}`,
     `.frame{fill:none;stroke:${pg.frame};stroke-width:${n(pg.frame_width)}}`,
     `.frame-inner{fill:none;stroke:${pg.frame};stroke-width:${n(pg.frame_inner_width)}}`,
     `.plate-bg{fill:${pl.fill}}`,

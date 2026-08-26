@@ -251,6 +251,19 @@ describe("document", () => {
     assert.ok(/<circle[^>]*class="panel-sun"/.test(ruled), "no plain filled sun");
   });
 
+  it("ages the paper without a blend mode", () => {
+    // mix-blend-mode is widely ignored by SVG tooling and degrades silently to
+    // flat grey, which is exactly what the first attempt did. Age is composited
+    // with ordinary alpha instead: turbulence mapped into the alpha of a fixed
+    // brown, at several scales.
+    assert.ok(!markup.includes("mix-blend-mode"), "age relies on a blend mode");
+    for (const id of ["age-blotch", "age-mottle", "age-tooth", "age-wear"]) {
+      assert.ok(markup.includes(`id="${id}"`), `${id} missing`);
+    }
+    assert.ok(/feTurbulence[^>]*baseFrequency="0.004"/.test(markup), "no broad blotching");
+    assert.ok(/feTurbulence[^>]*baseFrequency="0.85"/.test(markup), "no fine tooth");
+  });
+
   it("emits no CDATA", () => {
     // CDATA cannot exist in an HTML document, so importNode throws and the
     // editor fails to load the chart.

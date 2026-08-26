@@ -167,30 +167,49 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
 
   body.push(svg.rect(0, 0, page.width, page.height, { class_: "page-bg" }));
 
-  /* Tooth and staining, generated rather than photographed. Two turbulences:
-   * one fine, for the grain of the sheet, and one coarse, for the blotching a
-   * handled page picks up. It sits behind every mark, so the line work is not
-   * filtered and stays vector -- the whole reason not to reach for a
-   * displacement filter in the first place. */
-  const grain = pg.grain ?? 0;
-  if (grain > 0) {
-    defs.push(
-      `<filter id="grain" x="0" y="0" width="100%" height="100%">` +
-      `<feTurbulence type="fractalNoise" baseFrequency="${svg.fmt(pg.grain_frequency ?? 0.8)}" ` +
-      `numOctaves="4" seed="${pg.grain_seed ?? 7}" result="n"/>` +
-      `<feColorMatrix in="n" type="saturate" values="0"/>` +
-      `</filter>`,
-      `<filter id="stain" x="0" y="0" width="100%" height="100%">` +
-      `<feTurbulence type="fractalNoise" baseFrequency="${svg.fmt(pg.stain_frequency ?? 0.012)}" ` +
-      `numOctaves="3" seed="${(pg.grain_seed ?? 7) + 11}" result="n"/>` +
-      `<feColorMatrix in="n" type="saturate" values="0"/>` +
-      `</filter>`);
-    body.push(
-      svg.rect(0, 0, page.width, page.height,
-        { class_: "page-stain", filter: "url(#stain)" }),
-      svg.rect(0, 0, page.width, page.height,
-        { class_: "page-grain", filter: "url(#grain)" }));
+  /* Age, generated rather than photographed.
+   *
+   * A flat wash of noise reads as noise. What reads as a handled sheet is
+   * unevenness at several scales at once: broad blotches where it was damp,
+   * a finer mottle through the body of the paper, tooth in the fibre, and
+   * edges darker than the middle from being picked up by them.
+   *
+   * Each layer is a turbulence whose luminance is mapped into the *alpha* of a
+   * fixed brown, rather than drawn as grey and blended. That distinction
+   * matters: the blend-mode version needs `mix-blend-mode`, which a good deal
+   * of SVG tooling ignores, and silently degrades to flat grey. This composites
+   * with ordinary alpha and works anywhere.
+   */
+  const wash = (id, frequency, octaves, seed, colour, slope, bias) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(colour.slice(i, i + 2), 16) / 255);
+    return (
+      `<filter id="${id}" x="0" y="0" width="100%" height="100%">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="${svg.fmt(frequency, 5)}" ` +
+      `numOctaves="${octaves}" seed="${seed}" result="t"/>` +
+      `<feColorMatrix in="t" type="matrix" values="` +
+      `0 0 0 0 ${svg.fmt(r, 4)} 0 0 0 0 ${svg.fmt(g, 4)} 0 0 0 0 ${svg.fmt(b, 4)} ` +
+      `${svg.fmt(slope, 4)} ${svg.fmt(slope * 0.55, 4)} 0 0 ${svg.fmt(bias, 4)}"/>` +
+      `</filter>`
+    );
+  };
+
+  const age = pg.age ?? {};
+  const seed = age.seed ?? 7;
+  const sheet = () => [0, 0, page.width, page.height];
+  const aged = [];
+
+  if ((age.stain ?? 0) > 0) {
+    // Broad damp blotches, then a finer mottle through the body of the paper.
+    defs.push(wash("age-blotch", 0.004, 4, seed, age.colour ?? "#6b4a22", 1.7, -1.05));
+    defs.push(wash("age-mottle", 0.021, 4, seed + 13, age.colour ?? "#6b4a22", 1.15, -0.62));
+    aged.push(svg.rect(...sheet(), { class_: "age-blotch", filter: "url(#age-blotch)" }));
+    aged.push(svg.rect(...sheet(), { class_: "age-mottle", filter: "url(#age-mottle)" }));
   }
+  if ((age.tooth ?? 0) > 0) {
+    defs.push(wash("age-tooth", 0.85, 3, seed + 29, age.tooth_colour ?? "#4a3722", 1.1, -0.5));
+    aged.push(svg.rect(...sheet(), { class_: "age-tooth", filter: "url(#age-tooth)" }));
+  }
+  body.push(...aged);
 
   const inset = pg.frame_inset;
   const gap = inset + pg.frame_inner_gap;
@@ -327,6 +346,19 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
 
   for (const key of LAYER_ORDER) {
     body.push(`<g id="${key}">${layers[key].join("")}</g>`);
+  }
+
+  // Wear at the edges, above everything: a sheet is handled by its border, and
+  // the darkening there falls on whatever happens to be printed under it.
+  if ((age.wear ?? 0) > 0) {
+    defs.push(
+      `<radialGradient id="age-wear" cx="50%" cy="50%" r="${svg.fmt(age.wear_reach ?? 78)}%">` +
+      `<stop offset="${svg.fmt(age.wear_start ?? 52)}%" stop-color="${age.colour ?? "#6b4a22"}" ` +
+      `stop-opacity="0"/>` +
+      `<stop offset="100%" stop-color="${age.colour ?? "#6b4a22"}" stop-opacity="1"/>` +
+      `</radialGradient>`);
+    body.push(svg.rect(0, 0, page.width, page.height,
+      { class_: "age-wear", fill: "url(#age-wear)" }));
   }
 
   if (observer) {

@@ -35,13 +35,19 @@ export default {
     frame_inset: 10.0,
     frame_inner_gap: 3.0,
     frame_inner_width: 0.5,
-    // Tooth and blotching, generated in the file rather than photographed into
-    // it. Behind every mark, so nothing drawn is ever filtered.
-    grain: 0.16,
-    grain_frequency: 0.8,
-    stain: 0.1,
-    stain_frequency: 0.012,
-    grain_seed: 7,
+    // Age, generated in the file rather than photographed into it: broad damp
+    // blotches, a finer mottle, tooth in the fibre, and darker edges. All of it
+    // behind the line work, except the edge wear, which falls over everything.
+    age: {
+      stain: 0.5,
+      tooth: 0.16,
+      wear: 0.3,
+      colour: "#6b4a22",
+      tooth_colour: "#4a3722",
+      wear_start: 52,
+      wear_reach: 78,
+      seed: 7,
+    },
   },
 
   plate: {

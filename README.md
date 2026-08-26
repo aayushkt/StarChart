@@ -201,6 +201,22 @@ line ruled. Palettes can be saved from whatever colours are on screen; a palette
 is every colour-valued leaf in a theme, gathered automatically rather than
 listed by hand, so a colour added later is captured without anyone remembering.
 
+### Ageing the paper
+
+A flat wash of noise reads as noise. What reads as a handled sheet is
+unevenness at several scales at once: broad blotches where it was damp, a finer
+mottle through the body of the paper, tooth in the fibre, and edges darker than
+the middle from being picked up by them. Four layers, all generated in the file.
+
+Each is a turbulence whose luminance is mapped into the **alpha** of a fixed
+brown, rather than drawn as grey and blended. That distinction matters: the
+blend-mode version needs `mix-blend-mode`, which a good deal of SVG tooling
+ignores and silently degrades to flat grey — which is what the first attempt
+did. Alpha compositing works anywhere.
+
+The staining sits behind the line work. The edge wear sits over everything,
+because an edge is darker whatever happens to be printed on it.
+
 ### Drawing by hand
 
 Above `hand: 0` the diagrams stop being ruled. Lines bow and are gone over
