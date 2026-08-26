@@ -134,7 +134,7 @@ export default {
   panels: {
     // The diagrams around the plates. Drawn in the frame's ink on the paper, so
     // they read as engraving on the sheet rather than as part of a plate.
-    rule: true,
+    rule: false,
     rule_stroke: "#1d3a49",
     rule_width: 0.4,
     title_size: 3.2,
