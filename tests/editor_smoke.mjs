@@ -648,18 +648,19 @@ sunOf("solar-eclipse") === otherBefore
   ? ok("the other diagrams are unaffected") : fail("per-diagram colour leaked");
 
 // --- the heading rule is toggleable per diagram
-const ruleCount = () => chart().querySelectorAll("#panel-lunar-eclipse .panel-rule").length;
+// The rule above each heading is off by default now, and switchable per diagram.
+const ruleCount = (name) => chart().querySelectorAll(`#panel-${name} .panel-rule`).length;
 const ruleToggle = [...d.querySelectorAll(".check")]
   .find((c) => c.textContent.trim() === "Draw the rule")?.querySelector("input");
 ruleToggle ? ok("the heading rule has a toggle") : fail("no rule toggle");
-const rulesBefore = ruleCount();
-ruleToggle.checked = false;
-ruleToggle.dispatchEvent(new window.Event("change"));
-ruleCount() < rulesBefore
-  ? ok("switching the rule off removes it") : fail("rule still drawn");
-chart().querySelectorAll("#panel-solar-eclipse .panel-rule").length > 0
-  ? ok("other diagrams keep their rule") : fail("rule toggle leaked");
+ruleCount("lunar-eclipse") === 0 ? ok("no rule by default") : fail("rule drawn by default");
 ruleToggle.checked = true;
+ruleToggle.dispatchEvent(new window.Event("change"));
+ruleCount("lunar-eclipse") > 0
+  ? ok("switching the rule on draws it") : fail("rule not drawn when asked for");
+ruleCount("solar-eclipse") === 0
+  ? ok("other diagrams are unaffected") : fail("rule toggle leaked");
+ruleToggle.checked = false;
 ruleToggle.dispatchEvent(new window.Event("change"));
 
 d.querySelector(".btn.back").click();

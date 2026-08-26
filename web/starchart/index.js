@@ -11,7 +11,7 @@
 import { dayTrack, states } from "./bodies.js";
 import { loadCatalogues } from "./catalog.js";
 import defaultConfig from "./config.js";
-import defaultTheme from "./themes/cavallini.js";
+import defaultTheme from "./themes/portolan.js";
 import { buildChart } from "./render.js";
 import { LAYERS } from "./style.js";
 
@@ -19,7 +19,8 @@ export { LAYERS, stylesheet } from "./style.js";
 export { buildChart } from "./render.js";
 export { loadCatalogues } from "./catalog.js";
 export { default as defaultConfig } from "./config.js";
-export { default as defaultTheme } from "./themes/cavallini.js";
+export { default as defaultTheme } from "./themes/portolan.js";
+export { default as cavalliniTheme } from "./themes/cavallini.js";
 export { bucketMagnitude, BUCKET_COUNT } from "./labels.js";
 export { clockLabel, caption } from "./overlay.js";
 

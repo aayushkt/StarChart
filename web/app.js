@@ -11,8 +11,9 @@
  */
 
 import {
-  BUCKET_COUNT, bucketMagnitude, buildChart, clockLabel, loadChart,
+  BUCKET_COUNT, bucketMagnitude, buildChart, cavalliniTheme, clockLabel, loadChart,
 } from "./starchart/index.js";
+import portolanTheme from "./starchart/themes/portolan.js";
 import { atMinutes } from "./starchart/index.js";
 import { stylesheet } from "./starchart/style.js";
 
@@ -117,6 +118,13 @@ const isGeometry = (path) => path.startsWith("config.");
  * cost more in clicks than it saves in scrolling.
  */
 
+/* Whole sheets rather than partial overrides: these swap the theme outright,
+ * which is what "the same chart in a different tradition" means. */
+const SHEETS = {
+  "Portolan": portolanTheme,
+  "Cavallini": cavalliniTheme,
+};
+
 const PRESETS = {
   "Original": null,   // restored from the pristine embedded theme
   "Midnight": {
@@ -156,6 +164,7 @@ const PRESETS = {
 
 const PANEL = [
   { title: "The moment", open: true, kind: "time" },
+  { title: "Sheet", open: true, kind: "sheets" },
   { title: "Presets", open: true, kind: "presets" },
   {
     title: "Features", open: true, folders: [
@@ -635,6 +644,20 @@ function buildControls() {
 
     if (group.kind === "time") {
       sec.body.appendChild(timeRow());
+    } else if (group.kind === "sheets") {
+      const bar = el("div", "presets");
+      Object.entries(SHEETS).forEach(([name, theme]) => {
+        const b = el("button", "preset", name);
+        if (state.theme.name === theme.name) b.classList.add("on");
+        b.addEventListener("click", () => {
+          state.theme = structuredClone(theme);
+          state.base = structuredClone(theme);
+          buildControls();
+          rerender();
+        });
+        bar.appendChild(b);
+      });
+      sec.body.appendChild(bar);
     } else if (group.kind === "presets") {
       const bar = el("div", "presets");
       Object.keys(PRESETS).forEach((name) => {

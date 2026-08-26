@@ -1,66 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="609.6mm" height="914.4mm" viewBox="0 0 609.6 914.4"><defs><style>.page-bg{fill:#e2e6dc}
-.frame{fill:none;stroke:#1d3a49;stroke-width:1.4}
-.frame-inner{fill:none;stroke:#1d3a49;stroke-width:0.5}
-.plate-bg{fill:#1c3d52}
-.rim-band{fill:#f2efe2}
-.rim-inner{fill:none;stroke:#f2efe2;stroke-width:1.2}
-.rim-outer{fill:none;stroke:#1d3a49;stroke-width:1.2}
-.scale-tick{stroke:#1d3a49;stroke-width:0.3}
-.scale-label{fill:#1d3a49;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:3.6px;text-anchor:middle}
-.mw{fill:#a9c6cf;stroke:none}
-.grid{fill:none;stroke:#7ba0b2;stroke-width:0.28;stroke-opacity:0.55}
-.grid-accent{stroke:#a8c4d2;stroke-width:0.5}
-.star{fill:#f5cf63}
-.star-halo{fill:#f5cf63;fill-opacity:0.12}
-.title{fill:#1d3a49;font-family:Didot, 'Bodoni 72', 'Bodoni MT', Georgia, serif;font-size:20px;letter-spacing:4.2px;text-anchor:middle}
-.hemi-label{fill:#1d3a49;font-family:Didot, 'Bodoni 72', 'Bodoni MT', Georgia, serif;font-size:7px}
-.horizon{fill:none;stroke:#e8734a;stroke-width:0.9;stroke-dasharray:3.2 2.2;stroke-opacity:0.95;stroke-linecap:round}
-.zenith{fill:none;stroke:#e8734a;stroke-width:0.7;stroke-opacity:0.95}
-.caption{fill:#1d3a49;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:5px;letter-spacing:0.6px;text-anchor:middle}
-.ref-circle{fill:none;stroke:#9dc0cf;stroke-width:0.45;stroke-dasharray:none}
-.ecliptic{fill:none;stroke:#c8d8b8;stroke-width:0.7}
-.colure{fill:none;stroke:#8fb2c2;stroke-width:0.4}
-.ref-label,.ecliptic-label{fill:#cfe0e6;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:3.6px;font-style:italic}
-.star-label{fill:#f0ead7;font-family:'Iowan Old Style', Palatino, Georgia, serif;font-size:3.6px;font-style:italic}
-.constel-label{fill:#eee9d6;font-family:'Iowan Old Style', Palatino, Georgia, serif;font-size:3.4px}
-.constel-label-alt{fill:#cfe0e6;font-family:'Iowan Old Style', Palatino, Georgia, serif;font-size:3.4px;font-style:italic}
-.sun-disc{fill:#f0b429}
-.sun-ray{fill:#f0b429;stroke:none}
-.sun-limb{fill:none;stroke:#cfd8d0;stroke-width:0.35}
-.moon-dark{fill:#2a4a5e}
-.moon-lit{fill:#f4efdc}
-.moon-limb{fill:none;stroke:#cfd8d0;stroke-width:0.35}
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="609.6mm" height="914.4mm" viewBox="0 0 609.6 914.4"><defs><style>.page-bg{fill:#ddcdaa}
+.frame{fill:none;stroke:#4a3722;stroke-width:1.4}
+.frame-inner{fill:none;stroke:#4a3722;stroke-width:0.5}
+.plate-bg{fill:#2b2317}
+.rim-band{fill:#e2d3ae}
+.rim-inner{fill:none;stroke:#e5d8b8;stroke-width:1.2}
+.rim-outer{fill:none;stroke:#4a3722;stroke-width:1.2}
+.scale-tick{stroke:#4a3722;stroke-width:0.3}
+.scale-label{fill:#4a3722;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:3.6px;text-anchor:middle}
+.mw{fill:#c4b087;stroke:none}
+.grid{fill:none;stroke:#9a8358;stroke-width:0.28;stroke-opacity:0.5}
+.grid-accent{stroke:#c0aa78;stroke-width:0.5}
+.star{fill:#f0e0b4}
+.star-halo{fill:#f0e0b4;fill-opacity:0.1}
+.title{fill:#4a3722;font-family:Didot, 'Bodoni 72', 'Bodoni MT', Georgia, serif;font-size:20px;letter-spacing:4.2px;text-anchor:middle}
+.hemi-label{fill:#4a3722;font-family:Didot, 'Bodoni 72', 'Bodoni MT', Georgia, serif;font-size:7px}
+.horizon{fill:none;stroke:#a8412a;stroke-width:0.9;stroke-dasharray:3.2 2.2;stroke-opacity:0.92;stroke-linecap:round}
+.zenith{fill:none;stroke:#a8412a;stroke-width:0.7;stroke-opacity:0.92}
+.caption{fill:#4a3722;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:5px;letter-spacing:0.6px;text-anchor:middle}
+.ref-circle{fill:none;stroke:#b09767;stroke-width:0.45;stroke-dasharray:none}
+.ecliptic{fill:none;stroke:#d8c48b;stroke-width:0.7}
+.colure{fill:none;stroke:#9a8358;stroke-width:0.4}
+.ref-label,.ecliptic-label{fill:#e0d0a6;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:3.6px;font-style:italic}
+.star-label{fill:#e8dab6;font-family:'Iowan Old Style', Palatino, Georgia, serif;font-size:3.6px;font-style:italic}
+.constel-label{fill:#efe3c4;font-family:'Iowan Old Style', Palatino, Georgia, serif;font-size:3.4px}
+.constel-label-alt{fill:#c8b78e;font-family:'Iowan Old Style', Palatino, Georgia, serif;font-size:3.4px;font-style:italic}
+.sun-disc{fill:#c98f2e}
+.sun-ray{fill:#c98f2e;stroke:none}
+.sun-limb{fill:none;stroke:#e5d8b8;stroke-width:0.35}
+.moon-dark{fill:#4a3d28}
+.moon-lit{fill:#efe2c0}
+.moon-limb{fill:none;stroke:#e5d8b8;stroke-width:0.35}
 .day-circle{fill:none;stroke-width:0.6;stroke-dasharray:1.6 1.8}
-.day-circle-sun{stroke:#f0b429}
-.day-circle-moon{stroke:#bcd2dc}
-.moon-track{fill:none;stroke:#9fb9c6;stroke-width:0.5;stroke-dasharray:0.9 1.6}
+.day-circle-sun{stroke:#c98f2e}
+.day-circle-moon{stroke:#c8b78e}
+.moon-track{fill:none;stroke:#b5a179;stroke-width:0.5;stroke-dasharray:0.9 1.6}
 .body-label{font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:3.6px;font-style:italic}
-.body-label-sun{fill:#f0b429}
-.body-label-moon{fill:#bcd2dc}
-.panel-rule{stroke:#1d3a49;stroke-width:0.4}
-.panel-title{fill:#1d3a49;font-family:Didot, 'Bodoni 72', 'Bodoni MT', Georgia, serif;font-size:3.2px;letter-spacing:1.1px;text-anchor:middle}
-.panel-caption{fill:#1d3a49;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:2.3px;text-anchor:middle}
-.panel-note{fill:#1d3a49;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:2.3px;font-style:italic;text-anchor:middle}
-.panel-tick{fill:#1d3a49;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:2px;letter-spacing:0.3px;text-anchor:middle}
-.panel-sun{fill:#f0b429}
-.panel-earth{fill:#7ea9a2;stroke:#1d3a49;stroke-width:0.245}
-.panel-moon{fill:#f4efdc}
-.panel-moon-dark{fill:#2a4a5e}
-.panel-planet{fill:#1d3a49}
-.panel-orbit{fill:none;stroke:#6d8a97;stroke-width:0.35}
-.panel-axis{stroke:#1d3a49;stroke-width:0.35}
-.panel-ray{stroke:#1d3a49;stroke-width:0.28}
-.panel-scale{stroke:#1d3a49;stroke-width:0.35}
-.panel-umbra{fill:#1d3a49;fill-opacity:0.24;stroke:none}
-.panel .star{fill:#c99a1e}
-.panel .star-halo{fill:#c99a1e;fill-opacity:0.12}
-.panel .constel-label,.panel .star-label{fill:#1d3a49}
-.mw-1{fill-opacity:0.13}
-.mw-2{fill-opacity:0.13}
-.mw-3{fill-opacity:0.14}
-.mw-4{fill-opacity:0.15}
-.mw-5{fill-opacity:0.16}
+.body-label-sun{fill:#c98f2e}
+.body-label-moon{fill:#c8b78e}
+.panel-rule{stroke:#4a3722;stroke-width:0.4}
+.panel-title{fill:#4a3722;font-family:Didot, 'Bodoni 72', 'Bodoni MT', Georgia, serif;font-size:3.2px;letter-spacing:1.1px;text-anchor:middle}
+.panel-caption{fill:#4a3722;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:2.3px;text-anchor:middle}
+.panel-note{fill:#4a3722;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:2.3px;font-style:italic;text-anchor:middle}
+.panel-tick{fill:#4a3722;font-family:'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;font-size:2px;letter-spacing:0.3px;text-anchor:middle}
+.panel-sun{fill:#c98f2e}
+.panel-earth{fill:#8a7f5c;stroke:#4a3722;stroke-width:0.245}
+.panel-moon{fill:#efe2c0}
+.panel-moon-dark{fill:#4a3d28}
+.panel-planet{fill:#4a3722}
+.panel-orbit{fill:none;stroke:#7a6743;stroke-width:0.35}
+.panel-axis{stroke:#4a3722;stroke-width:0.35}
+.panel-ray{stroke:#4a3722;stroke-width:0.28}
+.panel-scale{stroke:#4a3722;stroke-width:0.35}
+.panel-umbra{fill:#4a3722;fill-opacity:0.22;stroke:none}
+.panel .star{fill:#a8801f}
+.panel .star-halo{fill:#a8801f;fill-opacity:0.1}
+.panel .constel-label,.panel .star-label{fill:#4a3722}
+.mw-1{fill-opacity:0.11}
+.mw-2{fill-opacity:0.11}
+.mw-3{fill-opacity:0.12}
+.mw-4{fill-opacity:0.13}
+.mw-5{fill-opacity:0.14}
 .mag-1{r:1.55px}
 .halo-1{r:4.03px}
 .mag-2{r:1.2px}

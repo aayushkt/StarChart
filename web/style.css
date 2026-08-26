@@ -179,6 +179,7 @@ input[type="range"]::-moz-range-thumb {
   color: var(--text-dim); background: var(--bg-sunk); border: 1px solid var(--line);
 }
 .preset:hover { color: var(--text); border-color: var(--gold); }
+.preset.on { color: #10222c; background: var(--gold); border-color: var(--gold); }
 
 /* ---------- stage ---------- */
 
