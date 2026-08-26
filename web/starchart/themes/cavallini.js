@@ -25,6 +25,13 @@ export default {
     // The thin second rule inside the frame, as on the original.
     frame_inner_gap: 3.0,
     frame_inner_width: 0.5,
+    // Tooth and blotching, generated in the file rather than photographed into
+    // it. Behind every mark, so nothing drawn is ever filtered.
+    grain: 0.0,
+    grain_frequency: 0.8,
+    stain: 0.0,
+    stain_frequency: 0.012,
+    grain_seed: 7,
   },
 
   plate: {
@@ -63,6 +70,8 @@ export default {
     ra_step: 10.0,
     // Meridians stop this far from the pole, leaving a clear polar circle.
     hub_deg: 10.0,
+    // A fraction of the diagrams' hand: scribed, not sketched.
+    hand: 0.0,
     // Emphasised circles: the equator and the polar circle.
     accent_stroke: "#a8c4d2",
     accent_width: 0.5,
@@ -134,6 +143,10 @@ export default {
   panels: {
     // The diagrams around the plates. Drawn in the frame's ink on the paper, so
     // they read as engraving on the sheet rather than as part of a plate.
+    // How much of a hand to draw with. 0 is ruled and flat-filled; about 1 is a
+    // working hand; past 2 it reads as a shaky one. Per diagram, like
+    // everything else here.
+    hand: 0.0,
     rule: false,
     rule_stroke: "#1d3a49",
     rule_width: 0.4,

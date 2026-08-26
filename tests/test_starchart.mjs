@@ -224,6 +224,33 @@ describe("document", () => {
     assert.ok(/class="mag-4"/.test(markup), "class 4 should still be drawn");
   });
 
+  it("draws by hand deterministically", async () => {
+    // Every wobble is seeded from the shape's own coordinates, so the same
+    // chart twice is identical. Unseeded, a slider nudge would reshuffle every
+    // line on the sheet, which is why the golden snapshot can exist at all.
+    const again = buildChart({
+      config: defaultConfig, theme: defaultTheme, data,
+      observer: makeObserver(defaultConfig),
+    });
+    assert.equal(again.markup, markup);
+
+    const sketch = await import("../web/starchart/sketch.js");
+    assert.equal(sketch.circle(10, 20, 30), sketch.circle(10, 20, 30));
+    assert.notEqual(sketch.circle(10, 20, 30), sketch.circle(10, 20, 31));
+  });
+
+  it("falls back to ruled output when the hand is zero", async () => {
+    const { cavalliniTheme } = await import("../web/starchart/index.js");
+    assert.equal(cavalliniTheme.panels.hand, 0);
+    assert.equal(cavalliniTheme.grid.hand, 0);
+    const ruled = buildChart({
+      config: { ...defaultConfig, panels: { ...defaultConfig.panels, enabled: true } },
+      theme: cavalliniTheme, data, observer: makeObserver(defaultConfig),
+    }).markup;
+    assert.ok(!ruled.includes('class="panel-sun hand"'), "hand paths in a ruled sheet");
+    assert.ok(/<circle[^>]*class="panel-sun"/.test(ruled), "no plain filled sun");
+  });
+
   it("emits no CDATA", () => {
     // CDATA cannot exist in an HTML document, so importNode throws and the
     // editor fails to load the chart.

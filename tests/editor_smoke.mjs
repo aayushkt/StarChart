@@ -633,8 +633,8 @@ chart().querySelector('[data-handle="panel:lunar-eclipse"].handle-selected')
 
 // --- a diagram's styling is its own
 const sunOf = (name) => {
-  const scoped = new RegExp(`#panel-${name} \\.panel-sun\\{fill:([^}]+)\\}`).exec(styleText());
-  return scoped ? scoped[1] : /\.panel-sun\{fill:([^}]+)\}/.exec(styleText())[1];
+  const scoped = new RegExp(`#panel-${name} \\.panel-sun\\{fill:([^;}]+)`).exec(styleText());
+  return scoped ? scoped[1] : /\.panel-sun\{fill:([^;}]+)/.exec(styleText())[1];
 };
 const sunSwatch = [...d.querySelectorAll("input.swatch")]
   .find((i) => i.dataset.path === "panelStyles.lunar-eclipse.sun");

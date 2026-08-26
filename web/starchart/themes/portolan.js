@@ -35,6 +35,13 @@ export default {
     frame_inset: 10.0,
     frame_inner_gap: 3.0,
     frame_inner_width: 0.5,
+    // Tooth and blotching, generated in the file rather than photographed into
+    // it. Behind every mark, so nothing drawn is ever filtered.
+    grain: 0.16,
+    grain_frequency: 0.8,
+    stain: 0.1,
+    stain_frequency: 0.012,
+    grain_seed: 7,
   },
 
   plate: {
@@ -73,6 +80,8 @@ export default {
     dec_step: 10.0,
     ra_step: 10.0,
     hub_deg: 10.0,
+    // A fraction of the diagrams' hand: scribed, not sketched.
+    hand: 0.35,
     accent_stroke: "#c0aa78",
     accent_width: 0.5,
   },
@@ -129,6 +138,10 @@ export default {
 
   panels: {
     // The diagrams sit on the paper, so they are drawn in the ink itself.
+    // How much of a hand to draw with. 0 is ruled and flat-filled; about 1 is a
+    // working hand; past 2 it reads as a shaky one. Per diagram, like
+    // everything else here.
+    hand: 1.0,
     rule: false,
     rule_stroke: "#4a3722",
     rule_width: 0.4,

@@ -37,25 +37,31 @@ export const LAYERS = [
 ];
 
 /** The rules a diagram can override, as [selector suffix, declarations]. */
-function panelRules(pn, st) {
+function panelRules(pn, st, ty) {
   return [
     [".panel-rule", `stroke:${pn.rule_stroke};stroke-width:${n(pn.rule_width)}`],
-    [".panel-title", `fill:${pn.title_fill};font-size:${n(pn.title_size)}px;` +
-      `letter-spacing:${n(pn.title_tracking)}px`],
-    [".panel-caption", `fill:${pn.ink};font-size:${n(pn.caption_size)}px`],
-    [".panel-note", `fill:${pn.ink};font-size:${n(pn.caption_size)}px`],
-    [".panel-tick", `fill:${pn.ink};font-size:${n(pn.tick_size)}px`],
-    [".panel-sun", `fill:${pn.sun}`],
-    [".panel-earth", `fill:${pn.earth};stroke:${pn.ink};` +
-      `stroke-width:${n(pn.line_width * 0.7)}`],
-    [".panel-moon", `fill:${pn.moon}`],
-    [".panel-moon-dark", `fill:${pn.moon_dark}`],
-    [".panel-planet", `fill:${pn.planet}`],
+    [".panel-title", `fill:${pn.title_fill};font-family:${ty.display};` +
+      `font-size:${n(pn.title_size)}px;letter-spacing:${n(pn.title_tracking)}px;` +
+      `text-anchor:middle`],
+    [".panel-caption", `fill:${pn.ink};font-family:${ty.body};` +
+      `font-size:${n(pn.caption_size)}px;text-anchor:middle`],
+    [".panel-note", `fill:${pn.ink};font-family:${ty.body};` +
+      `font-size:${n(pn.caption_size)}px;font-style:italic;text-anchor:middle`],
+    [".panel-tick", `fill:${pn.ink};font-family:${ty.body};` +
+      `font-size:${n(pn.tick_size)}px;letter-spacing:0.3px;text-anchor:middle`],
+    // Both fill and stroke: a shape is a flat fill when ruled and a set of
+    // strokes when drawn, and it should be the same colour either way.
+    [".panel-sun", `fill:${pn.sun};stroke:${pn.sun}`],
+    [".panel-earth", `fill:${pn.earth};stroke:${pn.ink}`],
+    [".panel-moon", `fill:${pn.moon};stroke:${pn.moon}`],
+    [".panel-moon-dark", `fill:${pn.moon_dark};stroke:${pn.moon_dark}`],
+    [".panel-planet", `fill:${pn.planet};stroke:${pn.planet}`],
     [".panel-orbit", `stroke:${pn.orbit};stroke-width:${n(pn.line_width)}`],
     [".panel-axis", `stroke:${pn.ink};stroke-width:${n(pn.line_width)}`],
     [".panel-ray", `stroke:${pn.ink};stroke-width:${n(pn.line_width * 0.8)}`],
     [".panel-scale", `stroke:${pn.ink};stroke-width:${n(pn.line_width)}`],
-    [".panel-umbra", `fill:${pn.umbra};fill-opacity:${n(pn.umbra_opacity)}`],
+    [".panel-umbra", `fill:${pn.umbra};fill-opacity:${n(pn.umbra_opacity)};` +
+      `stroke:${pn.umbra}`],
     [".star", `fill:${pn.star_sample}`],
     [".star-halo", `fill:${pn.star_sample};fill-opacity:${n(st.halo_opacity)}`],
     [".constel-label,.panel .star-label", `fill:${pn.ink}`],
@@ -70,6 +76,8 @@ export function stylesheet(theme, ui = {}) {
 
   const rules = [
     `.page-bg{fill:${pg.background}}`,
+    `.page-grain{opacity:${n(pg.grain ?? 0)};mix-blend-mode:multiply}`,
+    `.page-stain{opacity:${n(pg.stain ?? 0)};mix-blend-mode:multiply}`,
     `.frame{fill:none;stroke:${pg.frame};stroke-width:${n(pg.frame_width)}}`,
     `.frame-inner{fill:none;stroke:${pg.frame};stroke-width:${n(pg.frame_inner_width)}}`,
     `.plate-bg{fill:${pl.fill}}`,
@@ -123,30 +131,11 @@ export function stylesheet(theme, ui = {}) {
     `.body-label{font-family:${ty.body};font-size:${n(bd.label_size)}px;font-style:italic}`,
     `.body-label-sun{fill:${bd.day_circle_sun}}`,
     `.body-label-moon{fill:${bd.day_circle_moon}}`,
-    `.panel-rule{stroke:${pn.rule_stroke};stroke-width:${n(pn.rule_width)}}`,
-    `.panel-title{fill:${pn.title_fill};font-family:${ty.display};` +
-      `font-size:${n(pn.title_size)}px;letter-spacing:${n(pn.title_tracking)}px;` +
-      `text-anchor:middle}`,
-    `.panel-caption{fill:${pn.ink};font-family:${ty.body};` +
-      `font-size:${n(pn.caption_size)}px;text-anchor:middle}`,
-    `.panel-note{fill:${pn.ink};font-family:${ty.body};` +
-      `font-size:${n(pn.caption_size)}px;font-style:italic;text-anchor:middle}`,
-    `.panel-tick{fill:${pn.ink};font-family:${ty.body};` +
-      `font-size:${n(pn.tick_size)}px;letter-spacing:0.3px;text-anchor:middle}`,
-    `.panel-sun{fill:${pn.sun}}`,
-    `.panel-earth{fill:${pn.earth};stroke:${pn.ink};stroke-width:${n(pn.line_width * 0.7)}}`,
-    `.panel-moon{fill:${pn.moon}}`,
-    `.panel-moon-dark{fill:${pn.moon_dark}}`,
-    `.panel-planet{fill:${pn.planet}}`,
-    `.panel-orbit{fill:none;stroke:${pn.orbit};stroke-width:${n(pn.line_width)}}`,
-    `.panel-axis{stroke:${pn.ink};stroke-width:${n(pn.line_width)}}`,
-    `.panel-ray{stroke:${pn.ink};stroke-width:${n(pn.line_width * 0.8)}}`,
-    `.panel-scale{stroke:${pn.ink};stroke-width:${n(pn.line_width)}}`,
-    `.panel-umbra{fill:${pn.umbra};fill-opacity:${n(pn.umbra_opacity)};stroke:none}`,
-    `.panel .star{fill:${pn.star_sample}}`,
-    `.panel .star-halo{fill:${pn.star_sample};fill-opacity:${n(st.halo_opacity)}}`,
-    `.panel .constel-label,.panel .star-label{fill:${pn.ink}}`,
   ];
+
+  // The same rules the per-diagram overrides use, unscoped. Emitting both from
+  // one function is the only way they stay in step.
+  for (const [suffix, decls] of panelRules(pn, st, ty)) rules.push(`${suffix}{${decls}}`);
 
   mw.opacities.forEach((o, i) =>
     rules.push(`.mw-${i + 1}{fill-opacity:${n(o * (ui.mwScale ?? 1))}}`));
@@ -155,14 +144,20 @@ export function stylesheet(theme, ui = {}) {
     rules.push(`.halo-${i + 1}{r:${n(r * (ui.starScale ?? 1) * st.halo_scale)}px}`);
   });
 
-  // A diagram with its own styling gets the same rules again, scoped to its id,
+  // Drawn strokes carry a colour class for the colour and this for the rest.
+  // It has to sit after them all: `fill:none` is what stops a hatched shape
+  // being a filled one with lines on top, and it wins on order, not weight.
+  rules.push(".hand{fill:none;stroke-linecap:round;stroke-linejoin:round}");
+
+  // A diagram with its own styling gets the same rules again, scoped to their id,
   // which is enough to win on specificity.
   for (const [name, override] of Object.entries(theme.panelStyles ?? {})) {
     if (!override || !Object.keys(override).length) continue;
     const own = { ...pn, ...override };
-    for (const [suffix, decls] of panelRules(own, st)) {
+    for (const [suffix, decls] of panelRules(own, st, ty)) {
       rules.push(`#panel-${name} ${suffix}{${decls}}`);
     }
+    rules.push(`#panel-${name} .hand{fill:none}`);
   }
 
   for (let k = (ui.labelBucket ?? lb.mag_bucket) + 1; k < BUCKET_COUNT; k++) {

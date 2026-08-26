@@ -10,6 +10,7 @@ import { Placer, bucketFor, placeConstellationLabels, placeStarLabels } from "./
 import { arcText } from "./lettering.js";
 import { caption, drawOverlay } from "./overlay.js";
 import { drawPanels } from "./panels.js";
+import * as sketch from "./sketch.js";
 import { Hemisphere, NORTH, stackedPair } from "./projection.js";
 import { drawColures, drawEcliptic, drawSmallCircles } from "./reference.js";
 import { LAYERS, stylesheet } from "./style.js";
@@ -45,6 +46,12 @@ function drawMilkyWay(hemi, data) {
 function drawGrid(hemi, theme) {
   const gr = theme.grid;
   const parts = [];
+  // A ruled grid drawn by hand is still ruled -- it wants a fraction of what
+  // the diagrams get, enough to read as scribed rather than sketched.
+  const hand = gr.hand ?? 0;
+  const ring = (r) => hand > 0
+    ? svg.path(sketch.circle(hemi.cx, hemi.cy, r, { amount: hand, passes: 1 }), {})
+    : null;
   const innerDec = hemi.pole === NORTH ? -hemi.overlapDeg : hemi.overlapDeg;
   // Meridians stop against a small clear polar circle rather than colliding at
   // the pole, as on the original.
@@ -53,15 +60,24 @@ function drawGrid(hemi, theme) {
   for (let d = -80; d <= 80 + 1e-9; d += gr.dec_step) {
     if (!hemi.visible(d) || hemi.radiusForDec(d) <= 0.01) continue;
     const equator = Math.abs(d) < 1e-6;
-    parts.push(svg.circle(hemi.cx, hemi.cy, hemi.radiusForDec(d),
-      equator ? { class_: "grid-accent" } : {}));
+    const r = hemi.radiusForDec(d);
+    const cls = equator ? { class_: "grid-accent" } : {};
+    parts.push(hand > 0
+      ? svg.path(sketch.circle(hemi.cx, hemi.cy, r, { amount: hand, passes: 1 }), cls)
+      : svg.circle(hemi.cx, hemi.cy, r, cls));
   }
-  parts.push(svg.circle(hemi.cx, hemi.cy, hemi.radiusForDec(hubDec), { class_: "grid-accent" }));
+  const hubR = hemi.radiusForDec(hubDec);
+  parts.push(hand > 0
+    ? svg.path(sketch.circle(hemi.cx, hemi.cy, hubR, { amount: hand, passes: 1 }),
+        { class_: "grid-accent" })
+    : svg.circle(hemi.cx, hemi.cy, hubR, { class_: "grid-accent" }));
 
   for (let ra = 0; ra < 360 - 1e-9; ra += gr.ra_step) {
     const [x0, y0] = hemi.project(ra, hubDec);
     const [x1, y1] = hemi.project(ra, innerDec);
-    parts.push(svg.line(x0, y0, x1, y1));
+    parts.push(hand > 0
+      ? svg.path(sketch.line(x0, y0, x1, y1, { amount: hand, passes: 1 }), {})
+      : svg.line(x0, y0, x1, y1));
   }
   return `<g class="grid">${parts.join("")}</g>`;
 }
@@ -150,6 +166,31 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   const body = [];
 
   body.push(svg.rect(0, 0, page.width, page.height, { class_: "page-bg" }));
+
+  /* Tooth and staining, generated rather than photographed. Two turbulences:
+   * one fine, for the grain of the sheet, and one coarse, for the blotching a
+   * handled page picks up. It sits behind every mark, so the line work is not
+   * filtered and stays vector -- the whole reason not to reach for a
+   * displacement filter in the first place. */
+  const grain = pg.grain ?? 0;
+  if (grain > 0) {
+    defs.push(
+      `<filter id="grain" x="0" y="0" width="100%" height="100%">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="${svg.fmt(pg.grain_frequency ?? 0.8)}" ` +
+      `numOctaves="4" seed="${pg.grain_seed ?? 7}" result="n"/>` +
+      `<feColorMatrix in="n" type="saturate" values="0"/>` +
+      `</filter>`,
+      `<filter id="stain" x="0" y="0" width="100%" height="100%">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="${svg.fmt(pg.stain_frequency ?? 0.012)}" ` +
+      `numOctaves="3" seed="${(pg.grain_seed ?? 7) + 11}" result="n"/>` +
+      `<feColorMatrix in="n" type="saturate" values="0"/>` +
+      `</filter>`);
+    body.push(
+      svg.rect(0, 0, page.width, page.height,
+        { class_: "page-stain", filter: "url(#stain)" }),
+      svg.rect(0, 0, page.width, page.height,
+        { class_: "page-grain", filter: "url(#grain)" }));
+  }
 
   const inset = pg.frame_inset;
   const gap = inset + pg.frame_inner_gap;

@@ -13,6 +13,7 @@
 
 import { phasePoints } from "./bodies.js";
 import { arcText, textWidth } from "./lettering.js";
+import * as sketch from "./sketch.js";
 import { circle, fmt, line, path, polylineD, text } from "./svg.js";
 
 const RAD = Math.PI / 180;
@@ -39,6 +40,85 @@ export const PLANETS = [
 ];
 export const SUN_KM = 696000;
 const AU_MILLION_MILES = 92.956;
+
+/* ---------------------------------------------------------------- the pen
+ *
+ * Every diagram draws through this rather than calling the SVG primitives, so
+ * the difference between a ruled chart and a drawn one is one number in the
+ * theme. At `hand: 0` it emits exactly what it always did -- crisp circles and
+ * flat fills -- which is what makes the slider able to go back.
+ *
+ * Above zero, filled shapes become outline plus hatching. That is the part that
+ * matters: wobbling the outline of a flat fill just gives you a wobbly flat
+ * fill, and flat fill is most of what reads as machine-made.
+ */
+
+function pen(theme) {
+  const hand = theme.panels.hand ?? 0;
+  const on = hand > 0.001;
+  const stroke = (d, cls, w) =>
+    `<path d="${d}" class="${cls} hand" stroke-width="${fmt(w)}"/>`;
+
+  return {
+    on,
+    hand,
+
+    /** An outline, filled by nobody. */
+    ring(cx, cy, r, cls, weight = 1) {
+      if (!on) return circle(cx, cy, r, { class_: cls, fill: "none" });
+      return stroke(sketch.circle(cx, cy, r, { amount: hand }),
+                    cls, theme.panels.line_width * 1.9 * weight);
+    },
+
+    /** A body: a flat fill, or an outline with shading inside it. */
+    disc(cx, cy, r, cls, { angle = -38, density = 1.9 } = {}) {
+      if (!on) return circle(cx, cy, r, { class_: cls });
+      const gap = Math.max(0.55, density * (0.6 + 0.4 / Math.max(0.4, hand)));
+      return (
+        stroke(sketch.hatchCircle(cx, cy, r, { angle, density: gap, amount: hand }),
+               cls, theme.panels.line_width * 1.15) +
+        stroke(sketch.circle(cx, cy, r, { amount: hand }),
+               cls, theme.panels.line_width * 2.1)
+      );
+    },
+
+    line(x1, y1, x2, y2, cls, weight = 1) {
+      if (!on) return line(x1, y1, x2, y2, { class_: cls });
+      return stroke(sketch.line(x1, y1, x2, y2, { amount: hand }),
+                    cls, theme.panels.line_width * 1.5 * weight);
+    },
+
+    /** A closed run of points, optionally shaded. */
+    shape(points, cls, { hatch = null, density = 1.7 } = {}) {
+      if (!on) return path(polylineD(points, true), { class_: cls });
+      let out = "";
+      if (hatch !== null) {
+        out += stroke(
+          sketch.hatchPolygon(points, { angle: hatch, density, amount: hand }),
+          cls, theme.panels.line_width * 1.1);
+      }
+      return out + stroke(sketch.polyline(points, { amount: hand, close: true }),
+                          cls, theme.panels.line_width * 1.9);
+    },
+
+    /** An open run of points -- an orbit, a curve. */
+    curve(points, cls, weight = 1) {
+      if (!on) return path(polylineD(points), { class_: cls });
+      return stroke(sketch.polyline(points, { amount: hand }),
+                    cls, theme.panels.line_width * 1.6 * weight);
+    },
+  };
+}
+
+/** An ellipse as points, so the pen can draw it like anything else. */
+function ellipsePoints(cx, cy, rx, ry, samples = 72) {
+  const out = [];
+  for (let i = 0; i < samples; i++) {
+    const t = (i / samples) * Math.PI * 2;
+    out.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]);
+  }
+  return out;
+}
 
 /* -------------------------------------------------------------- helpers */
 
@@ -95,10 +175,11 @@ function planetSizes(box, theme, ctx) {
   const scale = Math.min(byHeight, byWidth);
   const sunR = SUN_KM * scale;
 
+  const P = pen(theme);
   const parts = [];
   const sunCx = a.x - sunR + a.w * 0.17;
   const sunCy = a.cy;
-  parts.push(circle(sunCx, sunCy, sunR, { class_: "panel-sun" }));
+  parts.push(P.disc(sunCx, sunCy, sunR, "panel-sun", { angle: -34, density: 2.4 }));
   parts.push(caption(a.x + a.w * 0.07, a.cy, "THE SUN", "panel-note"));
 
   // Planets in a row, true to each other and to that same Sun.
@@ -106,7 +187,10 @@ function planetSizes(box, theme, ctx) {
   for (const planet of PLANETS) {
     const r = Math.max(0.28, planet.km * scale);
     x += r;
-    parts.push(circle(x, a.cy, r, { class_: "panel-planet" }));
+    // Below a millimetre a hatched disc is just a smudge, so the small ones
+    // stay as marks.
+    parts.push(r > 1.6 ? P.disc(x, a.cy, r, "panel-planet", { angle: -50, density: 1.4 })
+                       : circle(x, a.cy, r, { class_: "panel-planet" }));
     // Only the giants have room for a name beside them.
     if (r > 2.2) {
       parts.push(caption(x, a.cy + r + 3.4, planet.name, "panel-tick"));
@@ -167,9 +251,10 @@ function solarSystem(box, theme, ctx) {
   // A plan view, orbits true to scale. That crowds the inner four into a knot
   // at the centre, which is not a flaw in the drawing -- it is what the solar
   // system looks like, and the scale bar is what makes it readable.
+  const P = pen(theme);
   for (const planet of PLANETS) {
     const r = planet.au * scale;
-    parts.push(circle(a.cx, cy, r, { class_: "panel-orbit" }));
+    parts.push(P.ring(a.cx, cy, r, "panel-orbit", 0.7));
     parts.push(circle(a.cx + r, cy, planet.au >= 5 ? 1.0 : 0.6, { class_: "panel-planet" }));
   }
   parts.push(circle(a.cx, cy, 1.6, { class_: "panel-sun" }));
@@ -185,9 +270,9 @@ function solarSystem(box, theme, ctx) {
   // A distance scale, which is what makes the crowding legible.
   const barR = 10 * scale;
   const barY = a.y + a.h - 1.5;
-  parts.push(line(a.cx - barR / 2, barY, a.cx + barR / 2, barY, { class_: "panel-scale" }));
+  parts.push(P.line(a.cx - barR / 2, barY, a.cx + barR / 2, barY, "panel-scale"));
   for (const dx of [-barR / 2, barR / 2]) {
-    parts.push(line(a.cx + dx, barY - 1.4, a.cx + dx, barY + 1.4, { class_: "panel-scale" }));
+    parts.push(P.line(a.cx + dx, barY - 1.4, a.cx + dx, barY + 1.4, "panel-scale"));
   }
   parts.push(caption(a.cx, barY - 2.6,
     `${Math.round(10 * AU_MILLION_MILES)} MILLION MILES`, "panel-tick"));
@@ -226,16 +311,17 @@ function solarEclipse(box, theme, ctx) {
   const moonX = (earthX - earthR + sunX * k) / (1 + k);
 
   const cone = shadowCone(sunX, sunR, moonX, moonR, cy);
+  const P = pen(theme);
   const parts = [
-    circle(sunX, cy, sunR, { class_: "panel-sun" }),
+    P.disc(sunX, cy, sunR, "panel-sun", { angle: -34, density: 2.2 }),
     // The umbra, narrowing to a point that just reaches the Earth -- which is
     // why totality is only ever seen from a narrow track.
-    path(polylineD([[moonX, cy - moonR], [cone.tipX, cy], [moonX, cy + moonR]], true),
-      { class_: "panel-umbra" }),
-    line(sunX, cy - sunR, cone.tipX, cy, { class_: "panel-ray" }),
-    line(sunX, cy + sunR, cone.tipX, cy, { class_: "panel-ray" }),
-    circle(earthX, cy, earthR, { class_: "panel-earth" }),
-    circle(moonX, cy, moonR, { class_: "panel-moon" }),
+    P.shape([[moonX, cy - moonR], [cone.tipX, cy], [moonX, cy + moonR]],
+      "panel-umbra", { hatch: 4, density: 1.3 }),
+    P.line(sunX, cy - sunR, cone.tipX, cy, "panel-ray"),
+    P.line(sunX, cy + sunR, cone.tipX, cy, "panel-ray"),
+    P.disc(earthX, cy, earthR, "panel-earth", { angle: -52, density: 1.5 }),
+    P.disc(moonX, cy, moonR, "panel-moon", { angle: 24, density: 0.9 }),
     caption(sunX, cy - sunR - 2.4, "SUN", "panel-tick"),
     caption(moonX, cy - moonR - 2.4, "MOON", "panel-tick"),
     caption(earthX, cy - earthR - 2.4, "EARTH", "panel-tick"),
@@ -254,15 +340,16 @@ function lunarEclipse(box, theme, ctx) {
 
   const cone = shadowCone(sunX, sunR, earthX, earthR, cy);
   const moonX = earthX + (cone.tipX - earthX) * 0.55;
+  const P = pen(theme);
 
   const parts = [
-    circle(sunX, cy, sunR, { class_: "panel-sun" }),
-    path(polylineD([[earthX, cy - earthR], [cone.tipX, cy], [earthX, cy + earthR]], true),
-      { class_: "panel-umbra" }),
-    line(sunX, cy - sunR, cone.tipX, cy, { class_: "panel-ray" }),
-    line(sunX, cy + sunR, cone.tipX, cy, { class_: "panel-ray" }),
-    circle(earthX, cy, earthR, { class_: "panel-earth" }),
-    circle(moonX, cy, moonR, { class_: "panel-moon-dark" }),
+    P.disc(sunX, cy, sunR, "panel-sun", { angle: -34, density: 2.2 }),
+    P.shape([[earthX, cy - earthR], [cone.tipX, cy], [earthX, cy + earthR]],
+      "panel-umbra", { hatch: 6, density: 1.5 }),
+    P.line(sunX, cy - sunR, cone.tipX, cy, "panel-ray"),
+    P.line(sunX, cy + sunR, cone.tipX, cy, "panel-ray"),
+    P.disc(earthX, cy, earthR, "panel-earth", { angle: -52, density: 1.5 }),
+    P.disc(moonX, cy, moonR, "panel-moon-dark", { angle: 18, density: 0.85 }),
     caption(sunX, cy - sunR - 2.4, "SUN", "panel-tick"),
     caption(earthX, cy - earthR - 2.4, "EARTH", "panel-tick"),
     caption(moonX, cy + moonR + 4.6, "MOON", "panel-tick"),
@@ -279,10 +366,13 @@ function earthRevolution(box, theme, ctx) {
   const cy = a.cy;
   const earthR = Math.min(a.h * 0.11, 4.2);
 
+  const P = pen(theme);
   const parts = [
-    path(`M${fmt(a.cx - rx)},${fmt(cy)}a${fmt(rx)},${fmt(ry)} 0 1 0 ${fmt(2 * rx)},0` +
-         `a${fmt(rx)},${fmt(ry)} 0 1 0 ${fmt(-2 * rx)},0`, { class_: "panel-orbit" }),
-    circle(a.cx, cy, 2.6, { class_: "panel-sun" }),
+    P.on
+      ? P.shape(ellipsePoints(a.cx, cy, rx, ry), "panel-orbit")
+      : path(`M${fmt(a.cx - rx)},${fmt(cy)}a${fmt(rx)},${fmt(ry)} 0 1 0 ${fmt(2 * rx)},0` +
+             `a${fmt(rx)},${fmt(ry)} 0 1 0 ${fmt(-2 * rx)},0`, { class_: "panel-orbit" }),
+    P.disc(a.cx, cy, 2.6, "panel-sun", { angle: -40, density: 1.1 }),
   ];
 
   // The four stations, in the positions the original gives them.
@@ -295,10 +385,10 @@ function earthRevolution(box, theme, ctx) {
   for (const [dx, dy, when, what] of stations) {
     const x = a.cx + dx * rx;
     const y = cy + dy * ry;
-    parts.push(circle(x, y, earthR, { class_: "panel-earth" }));
+    parts.push(P.disc(x, y, earthR, "panel-earth", { angle: -48, density: 1.2 }));
     // Axial tilt, drawn because it is the whole reason the seasons happen.
-    parts.push(line(x - earthR * 0.4, y - earthR * 1.5, x + earthR * 0.4, y + earthR * 1.5,
-      { class_: "panel-axis" }));
+    parts.push(P.line(x - earthR * 0.4, y - earthR * 1.5,
+                      x + earthR * 0.4, y + earthR * 1.5, "panel-axis"));
     // Both lines sit above the globe at the bottom station; below it there is
     // no room before the panel edge.
     const above = dy > 0 ? false : true;
@@ -318,14 +408,16 @@ function moonIllumination(box, theme, ctx) {
   const parts = [];
 
   // Sunlight arrives from the left, so the lit limb always faces that way.
+  const P = pen(theme);
   for (let i = 0; i < 5; i++) {
     const y = a.cy - ring + (i * 2 * ring) / 4;
-    parts.push(line(a.x + 1, y, a.x + 8, y, { class_: "panel-ray" }));
+    parts.push(P.line(a.x + 1, y, a.x + 8, y, "panel-ray"));
   }
   parts.push(caption(a.x + 11, a.cy - ring - 3, "SUN'S RAYS", "panel-tick"));
 
-  parts.push(circle(a.cx, a.cy, ring, { class_: "panel-orbit" }));
-  parts.push(circle(a.cx, a.cy, Math.max(2.4, moonR * 1.3), { class_: "panel-earth" }));
+  parts.push(P.ring(a.cx, a.cy, ring, "panel-orbit", 0.8));
+  parts.push(P.disc(a.cx, a.cy, Math.max(2.4, moonR * 1.3), "panel-earth",
+                    { angle: -48, density: 1.2 }));
 
   // Eight stations round the orbit. Illumination is geometric: the fraction lit
   // as seen from Earth depends only on the angle from the Sun.
@@ -337,11 +429,17 @@ function moonIllumination(box, theme, ctx) {
     const lit = (1 - Math.cos(t)) / 2;
     // Position angle of the Sun as seen from this station.
     const pa = (Math.atan2(a.cy - y, a.x - x) * 180) / Math.PI;
+    // The dark limb is hatched and the lit part left as paper -- which is how
+    // the phase is shown in every engraving of this, and reads far better than
+    // two flat tones.
+    const body = P.on
+      ? P.ring(0, 0, moonR, "panel-moon-dark", 0.9) +
+        P.shape(phasePoints(moonR, 1 - lit).map(([px, py]) => [-px, py]),
+                "panel-moon-dark", { hatch: 30, density: 0.75 })
+      : circle(0, 0, moonR, { class_: "panel-moon-dark" }) +
+        path(polylineD(phasePoints(moonR, lit), true), { class_: "panel-moon" });
     parts.push(
-      `<g transform="translate(${fmt(x)},${fmt(y)}) rotate(${fmt(pa)})">` +
-      circle(0, 0, moonR, { class_: "panel-moon-dark" }) +
-      path(polylineD(phasePoints(moonR, lit), true), { class_: "panel-moon" }) +
-      `</g>`);
+      `<g transform="translate(${fmt(x)},${fmt(y)}) rotate(${fmt(pa)})">${body}</g>`);
   }
 
   const label = (dx, dy, s) => caption(a.cx + dx, a.cy + dy, s, "panel-tick");
