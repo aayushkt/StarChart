@@ -198,16 +198,30 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   const sheet = () => [0, 0, page.width, page.height];
   const aged = [];
 
+  /* Six layers, and the reason there are six is that unevenness at one scale
+   * still reads as noise. A handled sheet is uneven at every scale at once, and
+   * in more than one hue -- the damp browns and the grey-green of foxed rag are
+   * different colours, not one colour at two strengths. */
+  const layer = (id, cls, freq, octaves, offset, colour, slope, bias) => {
+    defs.push(wash(id, freq, octaves, seed + offset, colour, slope, bias));
+    aged.push(svg.rect(...sheet(), { class_: cls, filter: `url(#${id})` }));
+  };
+
+  const warm = age.colour ?? "#6b4a22";
+  const cool = age.cool_colour ?? "#4e4629";
+
   if ((age.stain ?? 0) > 0) {
-    // Broad damp blotches, then a finer mottle through the body of the paper.
-    defs.push(wash("age-blotch", 0.004, 4, seed, age.colour ?? "#6b4a22", 1.7, -1.05));
-    defs.push(wash("age-mottle", 0.021, 4, seed + 13, age.colour ?? "#6b4a22", 1.15, -0.62));
-    aged.push(svg.rect(...sheet(), { class_: "age-blotch", filter: "url(#age-blotch)" }));
-    aged.push(svg.rect(...sheet(), { class_: "age-mottle", filter: "url(#age-mottle)" }));
+    layer("age-blotch", "age-blotch", 0.004, 4, 0, warm, 1.9, -1.0);
+    layer("age-cool", "age-cool", 0.009, 4, 21, cool, 1.9, -1.12);
+    layer("age-mottle", "age-mottle", 0.021, 4, 13, warm, 1.25, -0.6);
+  }
+  if ((age.foxing ?? 0) > 0) {
+    // Rust spots. Sparse on purpose: the threshold is what makes them specks
+    // rather than a texture.
+    layer("age-fox", "age-fox", 0.11, 2, 41, age.fox_colour ?? "#5a3312", 5.2, -3.9);
   }
   if ((age.tooth ?? 0) > 0) {
-    defs.push(wash("age-tooth", 0.85, 3, seed + 29, age.tooth_colour ?? "#4a3722", 1.1, -0.5));
-    aged.push(svg.rect(...sheet(), { class_: "age-tooth", filter: "url(#age-tooth)" }));
+    layer("age-tooth", "age-tooth", 0.85, 3, 29, age.tooth_colour ?? "#4a3722", 1.1, -0.5);
   }
   body.push(...aged);
 
@@ -352,13 +366,27 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   // the darkening there falls on whatever happens to be printed under it.
   if ((age.wear ?? 0) > 0) {
     defs.push(
-      `<radialGradient id="age-wear" cx="50%" cy="50%" r="${svg.fmt(age.wear_reach ?? 78)}%">` +
-      `<stop offset="${svg.fmt(age.wear_start ?? 52)}%" stop-color="${age.colour ?? "#6b4a22"}" ` +
-      `stop-opacity="0"/>` +
-      `<stop offset="100%" stop-color="${age.colour ?? "#6b4a22"}" stop-opacity="1"/>` +
-      `</radialGradient>`);
-    body.push(svg.rect(0, 0, page.width, page.height,
-      { class_: "age-wear", fill: "url(#age-wear)" }));
+      `<radialGradient id="age-wear-fill" cx="50%" cy="50%" ` +
+      `r="${svg.fmt(age.wear_reach ?? 70)}%">` +
+      `<stop offset="${svg.fmt(age.wear_start ?? 45)}%" stop-color="${warm}" stop-opacity="0"/>` +
+      `<stop offset="100%" stop-color="${warm}" stop-opacity="1"/>` +
+      `</radialGradient>`,
+      // Displacing a gradient is safe in a way displacing line work is not:
+      // there is no edge to smear and nothing to blur, so the boundary just
+      // goes ragged.
+      `<filter id="age-wear" x="-15%" y="-15%" width="130%" height="130%">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="${svg.fmt(age.wear_frequency ?? 0.011, 5)}" ` +
+      `numOctaves="4" seed="${seed + 53}" result="n"/>` +
+      `<feDisplacementMap in="SourceGraphic" in2="n" ` +
+      `scale="${svg.fmt(age.wear_ragged ?? 55)}" ` +
+      `xChannelSelector="R" yChannelSelector="G"/>` +
+      `</filter>`);
+    // Painted well past the sheet: the displacement pulls colour in from
+    // outside, and if there is nothing out there it pulls in transparency and
+    // leaves a hard band along the edge it sampled from.
+    const bleed = (age.wear_ragged ?? 55) * 1.6;
+    body.push(svg.rect(-bleed, -bleed, page.width + bleed * 2, page.height + bleed * 2,
+      { class_: "age-wear", fill: "url(#age-wear-fill)", filter: "url(#age-wear)" }));
   }
 
   if (observer) {

@@ -260,8 +260,19 @@ describe("document", () => {
     for (const id of ["age-blotch", "age-mottle", "age-tooth", "age-wear"]) {
       assert.ok(markup.includes(`id="${id}"`), `${id} missing`);
     }
-    assert.ok(/feTurbulence[^>]*baseFrequency="0.004"/.test(markup), "no broad blotching");
-    assert.ok(/feTurbulence[^>]*baseFrequency="0.85"/.test(markup), "no fine tooth");
+    for (const id of ["age-cool", "age-fox"]) {
+      assert.ok(markup.includes(`id="${id}"`), `${id} missing`);
+    }
+    // Several scales, and more than one hue -- one layer of anything reads as
+    // noise however strong it is.
+    const frequencies = [...markup.matchAll(/baseFrequency="([\d.]+)"/g)].map((m) => +m[1]);
+    assert.ok(Math.max(...frequencies) / Math.min(...frequencies) > 100,
+      "every age layer is at the same scale");
+    const hues = new Set([...markup.matchAll(/values="0 0 0 0 ([\d.]+)/g)].map((m) => m[1]));
+    assert.ok(hues.size >= 3, "the age layers are all one colour");
+    // The wear layer has to be painted past the sheet, or the displacement
+    // samples nothing and leaves a hard band along the edge.
+    assert.ok(/<rect x="-\d/.test(markup), "the wear layer does not bleed off the sheet");
   });
 
   it("emits no CDATA", () => {

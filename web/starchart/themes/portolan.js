@@ -39,13 +39,19 @@ export default {
     // blotches, a finer mottle, tooth in the fibre, and darker edges. All of it
     // behind the line work, except the edge wear, which falls over everything.
     age: {
-      stain: 0.5,
-      tooth: 0.16,
-      wear: 0.3,
+      stain: 0.85,
+      foxing: 0.4,
+      tooth: 0.22,
+      wear: 0.6,
+      // Two hues, not one at two strengths: damp browns and the grey-green of
+      // foxed rag are different colours.
       colour: "#6b4a22",
-      tooth_colour: "#4a3722",
-      wear_start: 52,
-      wear_reach: 78,
+      cool_colour: "#4e4629",
+      fox_colour: "#5a3312",
+      wear_start: 42,
+      wear_reach: 70,
+      wear_ragged: 55,
+      wear_frequency: 0.011,
       seed: 7,
     },
   },

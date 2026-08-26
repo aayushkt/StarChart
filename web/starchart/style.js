@@ -77,7 +77,9 @@ export function stylesheet(theme, ui = {}) {
   const rules = [
     `.page-bg{fill:${pg.background}}`,
     `.age-blotch{opacity:${n((pg.age?.stain ?? 0) * 1.0)}}`,
-    `.age-mottle{opacity:${n((pg.age?.stain ?? 0) * 0.75)}}`,
+    `.age-cool{opacity:${n((pg.age?.stain ?? 0) * 0.85)}}`,
+    `.age-mottle{opacity:${n((pg.age?.stain ?? 0) * 0.7)}}`,
+    `.age-fox{opacity:${n(pg.age?.foxing ?? 0)}}`,
     `.age-tooth{opacity:${n(pg.age?.tooth ?? 0)}}`,
     `.age-wear{opacity:${n(pg.age?.wear ?? 0)}}`,
     `.frame{fill:none;stroke:${pg.frame};stroke-width:${n(pg.frame_width)}}`,

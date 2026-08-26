@@ -248,13 +248,17 @@ const PANEL = [
         { path: "config.layout.hemi_label_deg", label: "Hemisphere label angle", min: -180, max: 180, step: 1, unit: "°" },
       ] },
       { title: "Paper", sliders: [
-        { path: "page.age.stain", label: "Staining", min: 0, max: 1.2, step: 0.02, unit: "" },
+        { path: "page.age.stain", label: "Staining", min: 0, max: 1.5, step: 0.02, unit: "" },
+        { path: "page.age.foxing", label: "Foxing", min: 0, max: 1, step: 0.02, unit: "" },
         { path: "page.age.tooth", label: "Tooth", min: 0, max: 0.6, step: 0.01, unit: "" },
-        { path: "page.age.wear", label: "Edge wear", min: 0, max: 0.8, step: 0.02, unit: "" },
+        { path: "page.age.wear", label: "Edge wear", min: 0, max: 1, step: 0.02, unit: "" },
         { path: "page.age.wear_start", label: "Wear reaches in to", min: 0, max: 90, step: 1, unit: "%" },
+        { path: "page.age.wear_ragged", label: "Edge raggedness", min: 0, max: 140, step: 2, unit: "" },
       ], colors: [
         ["page.background", "Paper"],
-        ["page.age.colour", "Stain"],
+        ["page.age.colour", "Damp stain"],
+        ["page.age.cool_colour", "Foxed rag"],
+        ["page.age.fox_colour", "Rust spots"],
       ] },
       { title: "The sheet", sliders: [
         { path: "config.page.width", label: "Page width", min: 200, max: 1200, step: 5, unit: "mm" },

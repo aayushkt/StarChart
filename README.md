@@ -203,10 +203,13 @@ listed by hand, so a colour added later is captured without anyone remembering.
 
 ### Ageing the paper
 
-A flat wash of noise reads as noise. What reads as a handled sheet is
-unevenness at several scales at once: broad blotches where it was damp, a finer
-mottle through the body of the paper, tooth in the fibre, and edges darker than
-the middle from being picked up by them. Four layers, all generated in the file.
+A flat wash of noise reads as noise, however strong it is. What reads as a
+handled sheet is unevenness at several scales *and in more than one hue*: broad
+blotches where it was damp, a cooler mottle where the rag has foxed, rust spots,
+tooth in the fibre, and edges darker than the middle from being picked up by
+them. Six layers, all generated in the file. Damp brown and foxed grey-green are
+different colours, not one colour at two strengths, and using one for both is
+most of what makes generated ageing look generated.
 
 Each is a turbulence whose luminance is mapped into the **alpha** of a fixed
 brown, rather than drawn as grey and blended. That distinction matters: the
@@ -215,7 +218,12 @@ ignores and silently degrades to flat grey — which is what the first attempt
 did. Alpha compositing works anywhere.
 
 The staining sits behind the line work. The edge wear sits over everything,
-because an edge is darker whatever happens to be printed on it.
+because an edge is darker whatever happens to be printed on it, and its boundary
+is a gradient pushed around by turbulence so it tears rather than fading in a
+clean ellipse. Displacing a gradient is safe in a way displacing line work is
+not: there is no edge to smear. It has to be painted well past the sheet, or the
+displacement samples transparency from outside and leaves a hard band along the
+edge it sampled from.
 
 ### Drawing by hand
 
