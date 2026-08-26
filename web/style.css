@@ -180,6 +180,8 @@ input[type="range"]::-moz-range-thumb {
 }
 .preset:hover { color: var(--text); border-color: var(--gold); }
 .preset.on { color: #10222c; background: var(--gold); border-color: var(--gold); }
+.preset.mine { border-style: dashed; }
+.section-body > .btn { flex: none; align-self: flex-start; }
 
 /* ---------- stage ---------- */
 

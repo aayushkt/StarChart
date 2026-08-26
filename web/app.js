@@ -118,54 +118,110 @@ const isGeometry = (path) => path.startsWith("config.");
  * cost more in clicks than it saves in scrolling.
  */
 
-/* Whole sheets rather than partial overrides: these swap the theme outright,
- * which is what "the same chart in a different tradition" means. */
+/* ---------- sheets and palettes ----------
+ *
+ * Two things, and they were muddled: a *sheet* is the whole design -- how much
+ * of a hand it is drawn with, whether the paper has tooth, line weights, type
+ * sizes -- while a *palette* is only colour. Between the two sheets here, 44
+ * colours differ and so do ten other values, `panels.hand` among them, which is
+ * why swapping sheets does more than repaint.
+ *
+ * A palette is every colour-valued leaf in a theme, gathered automatically.
+ * Nothing is listed by hand, so a colour added to a theme later is captured
+ * without anyone remembering to add it here.
+ */
+
 const SHEETS = {
   "Portolan": portolanTheme,
   "Cavallini": cavalliniTheme,
 };
 
-const PRESETS = {
-  "Original": null,   // restored from the pristine embedded theme
+const isColour = (v) => typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v);
+
+/** Every colour in a theme, as flat path -> hex. */
+function colourLeaves(obj, prefix = "", out = {}) {
+  for (const [k, v] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === "object" && !Array.isArray(v)) colourLeaves(v, path, out);
+    else if (isColour(v)) out[path] = v;
+  }
+  return out;
+}
+
+function applyPalette(colours) {
+  for (const [path, value] of Object.entries(colours)) {
+    if (get(path) !== undefined) set(path, value);
+  }
+  restyle();
+  buildControls();
+}
+
+const BUILT_IN_PALETTES = {
+  "Parchment": colourLeaves(portolanTheme),
+  "Lithograph": colourLeaves(cavalliniTheme),
   "Midnight": {
-    page: { background: "#0f1c24", frame: "#8fb4c4" },
-    plate: { fill: "#060f16", rim: "#8fb4c4", scale_fill: "#132530", scale_text: "#8fb4c4" },
-    stars: { fill: "#ffe9a8", halo_fill: "#ffe9a8" },
-    milkyway: { fill: "#7fa8bd" },
-    grid: { stroke: "#3f6d84", accent_stroke: "#6f9db4" },
-    reference: { stroke: "#5f8ea3", ecliptic_stroke: "#9fc39a", colure_stroke: "#4d7a8f",
-                 label_fill: "#a8c6d2" },
-    type: { title_fill: "#e6dcbd", hemi_fill: "#e6dcbd", star_fill: "#dfe6d8",
-            constel_fill: "#eee4c8", constel_alt: "#9fbecb" },
+    "page.background": "#0f1c24", "page.frame": "#8fb4c4",
+    "plate.fill": "#060f16", "plate.rim": "#8fb4c4",
+    "plate.scale_fill": "#132530", "plate.scale_text": "#8fb4c4",
+    "plate.scale_tick": "#8fb4c4",
+    "stars.fill": "#ffe9a8", "stars.halo_fill": "#ffe9a8",
+    "milkyway.fill": "#7fa8bd",
+    "grid.stroke": "#3f6d84", "grid.accent_stroke": "#6f9db4",
+    "reference.stroke": "#5f8ea3", "reference.ecliptic_stroke": "#9fc39a",
+    "reference.colure_stroke": "#4d7a8f", "reference.label_fill": "#a8c6d2",
+    "type.title_fill": "#e6dcbd", "type.hemi_fill": "#e6dcbd",
+    "type.star_fill": "#dfe6d8", "type.constel_fill": "#eee4c8",
+    "type.constel_alt": "#9fbecb",
+    "horizon.stroke": "#e8734a", "horizon.zenith_stroke": "#e8734a",
+    "horizon.caption_fill": "#cfe0e6",
+    "panels.ink": "#cfe0e6", "panels.title_fill": "#e6dcbd",
   },
   "Blueprint": {
-    page: { background: "#12457e", frame: "#dbe8f5" },
-    plate: { fill: "#0d3765", rim: "#dbe8f5", scale_fill: "#12457e", scale_text: "#dbe8f5" },
-    stars: { fill: "#ffffff", halo_fill: "#ffffff" },
-    milkyway: { fill: "#a9c8ea" },
-    grid: { stroke: "#94b6dc", accent_stroke: "#dbe8f5" },
-    reference: { stroke: "#a9c8ea", ecliptic_stroke: "#dbe8f5", colure_stroke: "#7ba3d0",
-                 label_fill: "#dbe8f5" },
-    type: { title_fill: "#ffffff", hemi_fill: "#ffffff", star_fill: "#dbe8f5",
-            constel_fill: "#ffffff", constel_alt: "#a9c8ea" },
+    "page.background": "#12457e", "page.frame": "#dbe8f5",
+    "plate.fill": "#0d3765", "plate.rim": "#dbe8f5",
+    "plate.scale_fill": "#12457e", "plate.scale_text": "#dbe8f5",
+    "plate.scale_tick": "#dbe8f5",
+    "stars.fill": "#ffffff", "stars.halo_fill": "#ffffff",
+    "milkyway.fill": "#a9c8ea",
+    "grid.stroke": "#94b6dc", "grid.accent_stroke": "#dbe8f5",
+    "reference.stroke": "#a9c8ea", "reference.ecliptic_stroke": "#dbe8f5",
+    "reference.colure_stroke": "#7ba3d0", "reference.label_fill": "#dbe8f5",
+    "type.title_fill": "#ffffff", "type.hemi_fill": "#ffffff",
+    "type.star_fill": "#dbe8f5", "type.constel_fill": "#ffffff",
+    "type.constel_alt": "#a9c8ea",
+    "horizon.stroke": "#ffd166", "horizon.zenith_stroke": "#ffd166",
+    "horizon.caption_fill": "#dbe8f5",
+    "panels.ink": "#dbe8f5", "panels.title_fill": "#ffffff",
   },
-  "Sepia": {
-    page: { background: "#efe3cc", frame: "#4a3520" },
-    plate: { fill: "#3d2c1a", rim: "#efe3cc", scale_fill: "#e6d8bd", scale_text: "#4a3520" },
-    stars: { fill: "#f0cc7e", halo_fill: "#f0cc7e" },
-    milkyway: { fill: "#c9ab7c" },
-    grid: { stroke: "#8f7350", accent_stroke: "#bda07a" },
-    reference: { stroke: "#b09267", ecliptic_stroke: "#d8c08a", colure_stroke: "#8f7350",
-                 label_fill: "#e2d2b0" },
-    type: { title_fill: "#4a3520", hemi_fill: "#4a3520", star_fill: "#f2e6c9",
-            constel_fill: "#f7edd6", constel_alt: "#cdb489" },
+  "Rust": {
+    "page.background": "#efe3cc", "page.frame": "#4a3520",
+    "plate.fill": "#3d2c1a", "plate.rim": "#efe3cc",
+    "plate.scale_fill": "#e6d8bd", "plate.scale_text": "#4a3520",
+    "plate.scale_tick": "#4a3520",
+    "stars.fill": "#f0cc7e", "stars.halo_fill": "#f0cc7e",
+    "milkyway.fill": "#c9ab7c",
+    "grid.stroke": "#8f7350", "grid.accent_stroke": "#bda07a",
+    "reference.stroke": "#b09267", "reference.ecliptic_stroke": "#d8c08a",
+    "reference.colure_stroke": "#8f7350", "reference.label_fill": "#e2d2b0",
+    "type.title_fill": "#4a3520", "type.hemi_fill": "#4a3520",
+    "type.star_fill": "#f2e6c9", "type.constel_fill": "#f7edd6",
+    "type.constel_alt": "#cdb489",
+    "horizon.stroke": "#a8412a", "horizon.zenith_stroke": "#a8412a",
+    "horizon.caption_fill": "#4a3520",
+    "panels.ink": "#4a3520", "panels.title_fill": "#4a3520",
   },
 };
+
+const PALETTE_STORE = "starchart.palettes";
+const savedPalettes = () => {
+  try { return JSON.parse(recall(PALETTE_STORE) || "{}"); } catch { return {}; }
+};
+const storePalettes = (all) => remember(PALETTE_STORE, JSON.stringify(all));
 
 const PANEL = [
   { title: "The moment", open: true, kind: "time" },
   { title: "Sheet", open: true, kind: "sheets" },
-  { title: "Presets", open: true, kind: "presets" },
+  { title: "Palette", open: true, kind: "palettes" },
   {
     title: "Features", open: true, folders: [
       { title: "Plate", layers: ["layer-plate", "layer-milkyway", "layer-grid",
@@ -645,6 +701,8 @@ function buildControls() {
     if (group.kind === "time") {
       sec.body.appendChild(timeRow());
     } else if (group.kind === "sheets") {
+      sec.body.appendChild(el("p", "sub",
+        "The whole design — how much of a hand it is drawn with, the paper, the weights."));
       const bar = el("div", "presets");
       Object.entries(SHEETS).forEach(([name, theme]) => {
         const b = el("button", "preset", name);
@@ -658,14 +716,42 @@ function buildControls() {
         bar.appendChild(b);
       });
       sec.body.appendChild(bar);
-    } else if (group.kind === "presets") {
+    } else if (group.kind === "palettes") {
+      sec.body.appendChild(el("p", "sub", "Colours only. Pick one, then tweak anything below."));
       const bar = el("div", "presets");
-      Object.keys(PRESETS).forEach((name) => {
+      for (const [name, colours] of Object.entries(BUILT_IN_PALETTES)) {
         const b = el("button", "preset", name);
-        b.addEventListener("click", () => applyPreset(name));
+        b.addEventListener("click", () => applyPalette(colours));
         bar.appendChild(b);
-      });
+      }
+      const mine = savedPalettes();
+      for (const [name, colours] of Object.entries(mine)) {
+        const b = el("button", "preset mine", `${name} ×`);
+        b.title = "Click to apply · shift-click to delete";
+        b.addEventListener("click", (event) => {
+          if (event.shiftKey) {
+            const all = savedPalettes();
+            delete all[name];
+            storePalettes(all);
+            buildControls();
+          } else {
+            applyPalette(colours);
+          }
+        });
+        bar.appendChild(b);
+      }
       sec.body.appendChild(bar);
+
+      const save = el("button", "btn", "Save these colours…");
+      save.addEventListener("click", () => {
+        const name = window.prompt("Name this palette");
+        if (!name) return;
+        const all = savedPalettes();
+        all[name] = colourLeaves(state.theme);
+        storePalettes(all);
+        buildControls();
+      });
+      sec.body.appendChild(save);
     }
 
     for (const spec of group.folders ?? []) {
@@ -704,10 +790,9 @@ function deepMerge(target, patch) {
   });
 }
 
-function applyPreset(name) {
-  const patch = PRESETS[name];
+/** Back to the sheet as it ships, colours and all. */
+function resetTheme() {
   state.theme = structuredClone(state.base);
-  if (patch) deepMerge(state.theme, patch);
   restyle();
   buildControls();
 }
@@ -1337,7 +1422,7 @@ document.getElementById("reset").addEventListener("click", () => {
     minutes: state.observer ? state.observer.minutes : 720,
     hidden: new Set(),
   };
-  applyPreset("Original");
+  resetTheme();
   rerender();
 });
 boot();

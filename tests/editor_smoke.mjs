@@ -241,6 +241,38 @@ styleText().includes(".plate-bg{fill:#ff0000}")
   ? ok("colour change rewrites the stylesheet") : fail("colour change did not apply");
 styleText() !== before ? ok("stylesheet mutated in place") : fail("stylesheet unchanged");
 
+// --- sheets and palettes are two different things, which is the whole point
+const chip = (label) => [...d.querySelectorAll(".preset")]
+  .find((b) => b.textContent.trim() === label);
+const handPaths = () => chart().querySelectorAll('[class~="hand"]').length;
+
+const handBefore = handPaths();
+handBefore > 0 ? ok(`the drawn sheet emits ${handBefore} hand-drawn paths`)
+               : fail("nothing is drawn by hand");
+chip("Blueprint").click();
+styleText().includes("#0d3765") ? ok("a palette repaints") : fail("palette did not apply");
+handPaths() === handBefore
+  ? ok("a palette leaves the drawing alone") : fail("a palette changed the drawing");
+
+chip("Cavallini").click();
+handPaths() === 0 ? ok("the ruled sheet turns the hand off") : fail("hand survived the sheet");
+chip("Portolan").click();
+handPaths() > 0 ? ok("the drawn sheet turns it back on") : fail("hand did not return");
+
+// Palettes can be saved and removed again.
+const savedBefore = d.querySelectorAll(".preset.mine").length;
+window.prompt = () => "My colours";
+[...d.querySelectorAll(".btn")]
+  .find((b) => b.textContent.includes("Save these colours")).click();
+d.querySelectorAll(".preset.mine").length === savedBefore + 1
+  ? ok("colours can be saved as a palette") : fail("save did nothing");
+[...d.querySelectorAll(".preset.mine")]
+  .find((b) => b.textContent.includes("My colours"))
+  .dispatchEvent(new window.MouseEvent("click", { bubbles: true, shiftKey: true }));
+d.querySelectorAll(".preset.mine").length === savedBefore
+  ? ok("and removed again") : fail("delete did nothing");
+localStorage.removeItem("starchart.palettes");
+
 // --- feature toggle
 const checks = [...d.querySelectorAll(".check input")];
 const mwToggle = checks.find((c) => c.parentElement.textContent.includes("Milky Way") &&
