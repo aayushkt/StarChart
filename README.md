@@ -60,7 +60,7 @@ which measures about 35 ms.
 
 ### Arranging the poster
 
-**Hold shift.** It outlines every movable thing — the plates, the seven
+**Hold shift.** It outlines every movable thing — the plates, the twelve
 diagrams, the title, the caption — and arms dragging. Let go and dragging pans
 again. Layout editing is modal on purpose: without it every drag near a plate is
 a coin toss between moving the poster and moving the view, and the grabbable
@@ -173,7 +173,7 @@ web/starchart/    the library — ES modules, no build step
   labels.js       collision-avoiding label placement
   lettering.js    text set along an arc, glyph by glyph
   sketch.js       drawing a line the way a hand would
-  panels.js       the seven diagrams, and the pen they draw through
+  panels.js       the twelve diagrams, and the pen they draw through
   overlay.js      the date-and-place overlay
   style.js        the stylesheet embedded in the SVG
   svg.js          minimal SVG writer
@@ -279,13 +279,27 @@ the roughly five-degree tilt of its orbit against the ecliptic.
 
 All seven diagrams from the original are drawn around the plates: comparative
 sizes of the Sun and planets, the magnitude key, the solar system to scale, both
-eclipses, Earth's revolution, and the illumination of the Moon. They are
-generated from real figures rather than traced — the planets are to true
+eclipses, Earth's revolution, and the illumination of the Moon. Five more are
+not from the original and carry no captions, only their notation — Newtonian
+gravitation as nested inverse-square field lines, Kepler's equal areas, a
+spacetime grid drawn down into a well, light bending past a black hole, and the
+Kuiper belt's eccentric orbits. They are generated from real figures rather
+than traced — the planets are to true
 relative size and true relative orbital distance, and the Moon phases are
 geometric. The eclipse diagrams are schematic in their proportions, because at
 true scale the Sun would be four hundred times further away than the panel is
 wide, but the construction is honest: the Moon is placed so its umbra converges
 exactly on the Earth's surface, which is the fact the panel exists to show.
+
+The added five are held to the same standard. The two Kepler sectors are solved
+by bisection to be genuinely equal in area, since a drawing where they visibly
+are not makes the opposite claim to the intended one. The orbits are drawn with
+the real semi-minor axis and scaled by aphelion distance, so nothing runs off
+its panel. The light deflection is scaled *down*: at impact parameters small
+enough to fit beside the horizon, 4GM/c²b asks for a bend of over a hundred
+degrees, which is far outside where that formula holds. The factor buys a
+legible angle, and the asymmetric shape — straight on the way in, leaving at
+the deflection angle — is the one the geometry actually has.
 
 Next: planets plotted on the plates themselves.
 

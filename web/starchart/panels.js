@@ -134,8 +134,12 @@ function frame(box, title, theme, body) {
   if (p.rule) {
     parts.push(line(box.x, box.y, box.x + box.w, box.y, { class_: "panel-rule" }));
   }
-  parts.push(text(box.x + box.w / 2, box.y + p.title_size + p.title_gap, title,
-    { class_: "panel-title" }));
+  // Some of these carry no heading at all -- an equation and a construction,
+  // the way a page of working looks.
+  if (title) {
+    parts.push(text(box.x + box.w / 2, box.y + p.title_size + p.title_gap, title,
+      { class_: "panel-title" }));
+  }
   // Drawing first, heading over it: the Sun's limb in the size panel reaches
   // across where the title sits, and would otherwise paint over its first letter.
   return `<g class="panel">` +
@@ -147,9 +151,9 @@ function frame(box, title, theme, body) {
 }
 
 /** The drawing area below a panel's heading. */
-const inner = (box, theme) => {
+const inner = (box, theme, titled = true) => {
   const p = theme.panels;
-  const top = box.y + p.title_size + p.title_gap + p.title_space;
+  const top = titled ? box.y + p.title_size + p.title_gap + p.title_space : box.y + 2;
   return { x: box.x, y: top, w: box.w, h: box.y + box.h - top,
            cx: box.x + box.w / 2, cy: (top + box.y + box.h) / 2 };
 };
@@ -407,13 +411,9 @@ function moonIllumination(box, theme, ctx) {
   const moonR = Math.max(2.0, ring * 0.17);
   const parts = [];
 
-  // Sunlight arrives from the left, so the lit limb always faces that way.
+  // Sunlight arrives from the left; the lit limbs all facing that way say so
+  // without a bundle of stray lines and a label to explain them.
   const P = pen(theme);
-  for (let i = 0; i < 5; i++) {
-    const y = a.cy - ring + (i * 2 * ring) / 4;
-    parts.push(P.line(a.x + 1, y, a.x + 8, y, "panel-ray"));
-  }
-  parts.push(caption(a.x + 11, a.cy - ring - 3, "SUN'S RAYS", "panel-tick"));
 
   parts.push(P.ring(a.cx, a.cy, ring, "panel-orbit", 0.8));
   parts.push(P.disc(a.cx, a.cy, Math.max(2.4, moonR * 1.3), "panel-earth",
@@ -451,6 +451,244 @@ function moonIllumination(box, theme, ctx) {
   return frame(box, "ILLUMINATION OF THE MOON", theme, parts.join(""));
 }
 
+/* ----------------------------------------------- physics, in the margins
+ *
+ * These carry no captions -- an equation and a construction, the way a page of
+ * working looks. Notation is set in italic serif rather than a label typeface,
+ * because it is meant to read as something written, not something printed.
+ */
+
+const eq = (x, y, content, size, cls = "panel-eq") =>
+  `<text x="${fmt(x)}" y="${fmt(y)}" class="${cls}" ` +
+  `font-size="${fmt(size)}" text-anchor="middle">${content}</text>`;
+
+/** Newton's law of gravitation, with the two masses that motivate it. */
+function gravitation(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const cy = a.cy + a.h * 0.1;
+  const bigR = a.h * 0.17;
+  const smallR = a.h * 0.075;
+  const bigX = a.x + a.w * 0.24;
+  const smallX = a.x + a.w * 0.76;
+  const parts = [];
+
+  // The inverse square, drawn: rings of field thinning with distance.
+  for (let i = 1; i <= 5; i++) {
+    parts.push(P.ring(bigX, cy, bigR + i * bigR * 0.55, "panel-orbit", 0.5));
+  }
+  parts.push(P.disc(bigX, cy, bigR, "panel-planet", { angle: -42, density: 1.5 }));
+  parts.push(P.disc(smallX, cy, smallR, "panel-planet", { angle: 38, density: 1.1 }));
+
+  // Equal and opposite.
+  const gap = smallX - bigX;
+  const arrow = (from, dir) => {
+    const tip = from + dir * gap * 0.12;
+    return P.line(from, cy - bigR * 1.9, tip, cy - bigR * 1.9, "panel-ray") +
+      P.line(tip, cy - bigR * 1.9, tip - dir * gap * 0.035, cy - bigR * 1.9 - gap * 0.02, "panel-ray") +
+      P.line(tip, cy - bigR * 1.9, tip - dir * gap * 0.035, cy - bigR * 1.9 + gap * 0.02, "panel-ray");
+  };
+  parts.push(arrow(bigX + gap * 0.28, 1));
+  parts.push(arrow(smallX - gap * 0.28, -1));
+  for (const x of [bigX, smallX]) {
+    parts.push(P.line(x, cy + bigR * 1.45, x, cy + bigR * 1.95, "panel-scale"));
+  }
+  parts.push(P.line(bigX, cy + bigR * 1.7, smallX, cy + bigR * 1.7, "panel-scale"));
+  parts.push(eq((bigX + smallX) / 2, cy + bigR * 1.7 + theme.panels.tick_size * 1.5,
+    "r", theme.panels.tick_size * 1.4));
+  parts.push(eq(a.cx, a.y + theme.panels.caption_size * 1.6,
+    "F = G M m / r²", theme.panels.caption_size * 1.5));
+  return frame(box, "", theme, parts.join(""));
+}
+
+/** The rubber sheet: a grid drawn down into a well. */
+function spacetime(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const cx = a.cx;
+  const cy = a.cy + a.h * 0.12;
+  const depth = a.h * 0.42;
+  const half = Math.min(a.w, a.h * 2.4) * 0.46;
+  const squash = 0.42;
+  const parts = [];
+
+  // A mass deforms the sheet as 1/r, softened at the centre so it stays drawn
+  // rather than going to infinity.
+  const well = (x, y) => {
+    const r = Math.hypot(x, y);
+    return -depth / (1 + (r / (half * 0.34)) ** 2);
+  };
+  const project = (x, y) => [cx + x, cy + y * squash + well(x, y)];
+
+  const lines = 9;
+  for (let i = 0; i <= lines; i++) {
+    const t = -half + (2 * half * i) / lines;
+    const along = [], across = [];
+    for (let j = 0; j <= 40; j++) {
+      const u = -half + (2 * half * j) / 40;
+      along.push(project(u, t));
+      across.push(project(t, u));
+    }
+    parts.push(P.curve(along, "panel-orbit", 0.55));
+    parts.push(P.curve(across, "panel-orbit", 0.55));
+  }
+  parts.push(P.disc(cx, cy + well(0, 0) + depth * 0.06, a.h * 0.055, "panel-planet",
+    { angle: -40, density: 1.0 }));
+  parts.push(eq(a.cx, a.y + theme.panels.caption_size * 1.5,
+    "G<tspan baseline-shift=\"sub\" font-size=\"70%\">μν</tspan> = 8πG T" +
+    "<tspan baseline-shift=\"sub\" font-size=\"70%\">μν</tspan> / c⁴",
+    theme.panels.caption_size * 1.4));
+  return frame(box, "", theme, parts.join(""));
+}
+
+/** Horizon, photon sphere, disc, and light that does not get away. */
+function blackHole(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const cx = a.cx;
+  // Sized so the rays have somewhere to be: the horizon has to be small enough
+  // that a few impact parameters still fit above the disc and inside the box.
+  const cy = a.cy + a.h * 0.16;
+  const rs = Math.min(a.w, a.h) * 0.11;
+  const parts = [];
+
+  // The accretion disc, edge on.
+  for (const k of [2.6, 3.4, 4.2]) {
+    const pts = [];
+    for (let i = 0; i <= 80; i++) {
+      const t = (i / 80) * Math.PI * 2;
+      pts.push([cx + rs * k * Math.cos(t), cy + rs * k * 0.26 * Math.sin(t)]);
+    }
+    parts.push(P.curve(pts.concat([pts[0]]), "panel-orbit", 0.55));
+  }
+  // Photon sphere at 1.5 rs, then the horizon itself, filled with nothing.
+  parts.push(P.ring(cx, cy, rs * 1.5, "panel-ray", 0.6));
+  parts.push(P.disc(cx, cy, rs, "panel-planet", { angle: -45, density: 0.8 }));
+
+  /* Light bending past, closer rays bent harder. The deflection is 4GM/c²b --
+   * twice what Newton would give -- which is 2rs/b in these units, and the
+   * curve is straight on the way in and leaves at that angle rather than
+   * bowing symmetrically, which is the shape the geometry actually has.
+   *
+   * Scaled *down*, not up: at impact parameters this close the weak-field
+   * formula would ask for a 115-degree bend, which it is nowhere near valid
+   * for. The factor buys a legible angle, not a claimed one. */
+  const exaggerate = 0.52;
+  for (const k of [1.7, 2.4, 3.3, 4.4]) {
+    const impact = rs * k;
+    const alpha = ((2 * rs) / impact) * exaggerate;
+    const soften = impact * 0.85;
+    const pts = [];
+    for (let i = 0; i <= 60; i++) {
+      const x = -a.w * 0.47 + (a.w * 0.94 * i) / 60;
+      // Horizontal as x goes to minus infinity, sloping by alpha as it leaves.
+      const drop = (alpha / 2) * (x + Math.sqrt(x * x + soften * soften) - soften);
+      pts.push([cx + x, cy - impact + drop]);
+    }
+    parts.push(P.curve(pts, "panel-ray", 0.5));
+  }
+  parts.push(eq(a.cx, a.y + theme.panels.caption_size * 1.5,
+    "r<tspan baseline-shift=\"sub\" font-size=\"70%\">s</tspan> = 2GM / c²",
+    theme.panels.caption_size * 1.4));
+  return frame(box, "", theme, parts.join(""));
+}
+
+/** Kepler's second law: equal areas in equal times.
+ *
+ * The two sectors are solved to be equal rather than eyeballed. That is the
+ * whole claim of the picture, and a drawing where they visibly are not makes
+ * the opposite one.
+ */
+function equalAreas(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  // Eccentricity is chosen, not inherited from the panel's proportions. Taking
+  // it from the box gave e = 0.9 in a wide panel, which is a comet rather than
+  // a planet and collapses both sectors into slivers.
+  const ecc = 0.55;
+  const semi = Math.min(a.w * 0.4, a.h * 0.42 / Math.sqrt(1 - ecc * ecc));
+  const minor = semi * Math.sqrt(1 - ecc * ecc);
+  const cy = a.cy + a.h * 0.06;
+  const c = semi * ecc;
+  const fx = a.cx - c;
+
+  // Position at true anomaly, measured from the focus, perihelion to the left.
+  const at = (theta) => {
+    const r = (semi * (1 - ecc * ecc)) / (1 + ecc * Math.cos(theta));
+    return [fx - r * Math.cos(theta), cy + r * Math.sin(theta)];
+  };
+  // Area swept from the focus, by the same formula the orbit is drawn with.
+  const area = (from, to, steps = 240) => {
+    let sum = 0;
+    for (let i = 0; i < steps; i++) {
+      const t = from + ((to - from) * (i + 0.5)) / steps;
+      const r = (semi * (1 - ecc * ecc)) / (1 + ecc * Math.cos(t));
+      sum += 0.5 * r * r * ((to - from) / steps);
+    }
+    return sum;
+  };
+
+  const parts = [];
+  const orbit = [];
+  for (let i = 0; i <= 96; i++) orbit.push(at((i / 96) * Math.PI * 2));
+  parts.push(P.shape(orbit, "panel-orbit"));
+  parts.push(P.disc(fx, cy, a.h * 0.05, "panel-sun", { angle: -40, density: 1.0 }));
+
+  // A short fat sweep at perihelion, then solve for the long thin one at
+  // aphelion that covers the same ground.
+  const near = 0.62;
+  const target = area(-near, near);
+  let lo = 0.02, hi = Math.PI - 0.02;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (area(Math.PI - mid, Math.PI + mid) < target) lo = mid; else hi = mid;
+  }
+  const far = (lo + hi) / 2;
+
+  for (const [from, to, hatch] of [[-near, near, -40], [Math.PI - far, Math.PI + far, 40]]) {
+    const sector = [[fx, cy]];
+    for (let i = 0; i <= 28; i++) sector.push(at(from + ((to - from) * i) / 28));
+    parts.push(P.shape(sector, "panel-umbra", { hatch, density: 1.5 }));
+  }
+  parts.push(eq(a.cx, a.y + theme.panels.caption_size * 1.5,
+    "dA/dt = constant", theme.panels.caption_size * 1.4));
+  return frame(box, "", theme, parts.join(""));
+}
+
+/** The outer system: eccentric, inclined, and mostly empty. */
+function kuiper(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const cy = a.cy + a.h * 0.04;
+  const maxR = Math.min(a.w * 0.44, a.h * 0.42);
+  const parts = [];
+
+  parts.push(P.disc(a.cx, cy, a.h * 0.035, "panel-sun", { angle: -40, density: 0.9 }));
+  // Neptune, circular; then a scatter of resonant and detached orbits.
+  parts.push(P.ring(a.cx, cy, maxR * 0.42, "panel-orbit", 0.6));
+  const orbits = [
+    [0.58, 0.24, 12], [0.66, 0.31, -28], [0.74, 0.12, 48],
+    [0.86, 0.44, -8], [0.97, 0.22, 70],
+  ];
+  for (const [scale, ecc, tilt] of orbits) {
+    // `scale` is the aphelion distance from the Sun, not the semi-major axis:
+    // scaling the axis instead let the far end of the eccentric orbits reach
+    // 1.2 maxR and run off the panel. Semi-minor is the real b = a sqrt(1-e²).
+    const rx = (maxR * scale) / (1 + ecc);
+    const ry = rx * Math.sqrt(1 - ecc * ecc);
+    const pts = ellipsePoints(0, 0, rx, ry, 64).map(([x, y]) => {
+      const t = tilt * RAD;
+      return [a.cx + x * Math.cos(t) - y * Math.sin(t) + rx * ecc * Math.cos(t),
+              cy + x * Math.sin(t) + y * Math.cos(t) + rx * ecc * Math.sin(t)];
+    });
+    parts.push(P.curve(pts.concat([pts[0]]), "panel-orbit", 0.5));
+    parts.push(circle(pts[8][0], pts[8][1], 0.7, { class_: "panel-planet" }));
+  }
+  parts.push(eq(a.cx, a.y + theme.panels.caption_size * 1.5,
+    "T² ∝ a³", theme.panels.caption_size * 1.4));
+  return frame(box, "", theme, parts.join(""));
+}
+
 /* ------------------------------------------------------------ registry */
 
 /** What each diagram wants to be, in millimetres.
@@ -469,6 +707,11 @@ export const PANEL_SIZES = {
   "lunar-eclipse": { w: 165, h: 58 },
   "earth-revolution": { w: 185, h: 85 },
   "moon-illumination": { w: 120, h: 100 },
+  "gravitation": { w: 150, h: 78 },
+  "spacetime": { w: 145, h: 95 },
+  "black-hole": { w: 150, h: 88 },
+  "equal-areas": { w: 140, h: 82 },
+  "kuiper": { w: 128, h: 108 },
 };
 
 export const PANELS = {
@@ -479,6 +722,11 @@ export const PANELS = {
   "lunar-eclipse": lunarEclipse,
   "earth-revolution": earthRevolution,
   "moon-illumination": moonIllumination,
+  "gravitation": gravitation,
+  "spacetime": spacetime,
+  "black-hole": blackHole,
+  "equal-areas": equalAreas,
+  "kuiper": kuiper,
 };
 
 /** Flow the diagrams across the sheet at their own sizes, wrapping.

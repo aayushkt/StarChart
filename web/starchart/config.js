@@ -73,6 +73,8 @@ export default {
     order: [
       "planet-sizes", "magnitude-key", "solar-system",
       "solar-eclipse", "lunar-eclipse", "earth-revolution", "moon-illumination",
+      // Marginalia: a construction and an equation each, no captions.
+      "gravitation", "equal-areas", "spacetime", "black-hole", "kuiper",
     ],
     // Where the flow starts, below the top margin.
     start_offset: 60.0,

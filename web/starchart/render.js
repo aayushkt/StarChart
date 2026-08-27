@@ -25,12 +25,17 @@ const magClass = (mag) => {
   return k + 1;
 };
 
+/* The diagrams go down first, so the plates cover them where they overlap: a
+ * plate is the subject and a diagram is marginalia, and marginalia does not sit
+ * on top of the subject. Selection is unaffected -- it picks the smallest box
+ * containing the point, which has nothing to do with paint order, so a diagram
+ * mostly hidden under a plate is still the thing you grab. */
 const LAYER_ORDER = [
+  "layer-panels",
   "layer-plate", "layer-milkyway", "layer-grid", "layer-tropics", "layer-ecliptic",
   "layer-colures", "layer-moon-track", "layer-star-halos", "layer-stars",
   "layer-constellation-labels", "layer-star-labels", "layer-rim",
   "layer-hemi-labels", "layer-sun", "layer-moon", "layer-horizon",
-  "layer-panels",
 ];
 
 function drawMilkyWay(hemi, data) {

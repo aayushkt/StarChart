@@ -12,6 +12,15 @@ import { JSDOM } from "jsdom";
 import fs from "node:fs";
 import path from "node:path";
 
+// Read from the same modules the page does, so adding a diagram or retuning
+// the rim band does not fail a hand-copied number here.
+import { defaultConfig } from "../web/starchart/index.js";
+import portolan from "../web/starchart/themes/portolan.js";
+
+const DIAGRAMS = defaultConfig.panels.order;
+// The plates, the title and the caption are draggable alongside the diagrams.
+const MOVABLE = DIAGRAMS.length + 3;
+
 const REPO = path.resolve(new URL("..", import.meta.url).pathname);
 const WEB = path.join(REPO, "web");
 
@@ -343,7 +352,8 @@ radius.dispatchEvent(new window.Event("input"));
 const panelIds = () => [...chart().querySelectorAll('g[id^="panel-"]')]
   .map((g) => g.id).filter((id) => !id.startsWith("panel-clip"));
 const allPanels = panelIds();
-allPanels.length === 7 ? ok(`${allPanels.length} diagrams drawn`) : fail(`${allPanels.length} diagrams`);
+allPanels.length === DIAGRAMS.length
+  ? ok(`${allPanels.length} diagrams drawn`) : fail(`${allPanels.length} diagrams`);
 
 const diagramToggle = [...d.querySelectorAll(".check")]
   .find((c) => c.textContent.trim() === "Eclipse of the Sun");
@@ -364,7 +374,7 @@ input.dispatchEvent(new window.Event("change"));
   if (!toggle.checked) { toggle.checked = true; toggle.dispatchEvent(new window.Event("change")); }
   setChecked("Show the diagrams", true);
 
-  const band = 11;   // theme.plate.scale_band
+  const band = portolan.plate.scale_band;
   const circles = [...chart().querySelectorAll("#layer-plate circle")]
     .map((c) => ({ cy: +c.getAttribute("cy"), r: +c.getAttribute("r"),
                    cx: +c.getAttribute("cx") }));
@@ -466,8 +476,9 @@ shift("keydown");
 chart().querySelector("#layer-handles")
   ? ok("shift shows the layout handles") : fail("no handles on shift");
 const handleCount = chart().querySelectorAll(".handle-box").length;
-handleCount === 10 ? ok(`${handleCount} handles (the plates + 7 diagrams + title + caption)`)
-                   : fail(`${handleCount} handles`);
+handleCount === MOVABLE
+  ? ok(`${handleCount} handles (the plates + ${DIAGRAMS.length} diagrams + title + caption)`)
+  : fail(`${handleCount} handles`);
 shift("keyup");
 !chart().querySelector("#layer-handles")
   ? ok("releasing shift hides them") : fail("handles stuck on");
@@ -477,11 +488,10 @@ shift("keyup");
 // cover its box. The handle is the hit area precisely because the diagrams are
 // mostly empty space.
 shift("keydown");
-const grabbable = ["planet-sizes", "magnitude-key", "solar-system", "solar-eclipse",
-                   "lunar-eclipse", "earth-revolution", "moon-illumination"]
-  .filter((n) => handleFor(`panel:${n}`));
-grabbable.length === 7 ? ok("all 7 diagrams have a hit area")
-                       : fail(`only ${grabbable.length} diagrams grabbable`);
+const grabbable = DIAGRAMS.filter((n) => handleFor(`panel:${n}`));
+grabbable.length === DIAGRAMS.length
+  ? ok(`all ${DIAGRAMS.length} diagrams have a hit area`)
+  : fail(`only ${grabbable.length} of ${DIAGRAMS.length} diagrams grabbable`);
 
 // Both plates are one object: a single handle, and a drag moves the pair
 // without changing their spacing.
@@ -526,7 +536,8 @@ for (const name of grabbable) {
     chart().querySelector(`[data-handle="panel:${name}"] rect`).getAttribute("x"));
   if (Math.abs(after - before) > 1) moved++;
 }
-moved === 7 ? ok("every diagram can be dragged") : fail(`only ${moved} of 7 diagrams moved`);
+moved === DIAGRAMS.length ? ok("every diagram can be dragged")
+  : fail(`only ${moved} of ${DIAGRAMS.length} diagrams moved`);
 
 // The outline travels with what it outlines.
 const outlineX = () => Number(
@@ -603,7 +614,7 @@ for (const name of ["title", "caption"]) {
 
 // --- corner grips resize, aspect locked, anchored at the opposite corner
 shift("keydown");
-chart().querySelectorAll("[data-grip]").length === 10
+chart().querySelectorAll("[data-grip]").length === MOVABLE
   ? ok("every handle has a resize grip") : fail("grips missing");
 
 const panelBox = () => {

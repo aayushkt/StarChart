@@ -37,7 +37,7 @@ export default {
     rim: "#f2efe2",
     rim_width: 1.2,
     // Width of the pale band between the rim circles carrying the degree scale.
-    scale_band: 11.0,
+    scale_band: 16.5,
     scale_fill: "#f2efe2",
     scale_text: "#1d3a49",
     scale_tick: "#1d3a49",
@@ -86,13 +86,13 @@ export default {
     colure_stroke: "#8fb2c2",
     colure_width: 0.4,
     label_fill: "#cfe0e6",
-    label_size: 3.6,
-    label_tracking: 0.45,
+    label_size: 5.4,
+    label_tracking: 0.675,
     // Gap between the tops of the letters and the circle they sit inside. The
     // baseline is derived from this, because glyphs grow outward from the
     // baseline on an outward-facing arc -- a raw offset instead lets the
     // ascenders cross the circle and be clipped by it.
-    label_clearance: 1.15,
+    label_clearance: 1.725,
     // Where each kind of label sits, clockwise from straight up.
     small_circle_label_deg: 150.0,
     ecliptic_label_lon: 300.0,
@@ -101,8 +101,8 @@ export default {
 
   labels: {
     // Gap between a star and its name, in mm.
-    star_gap: 1.9,
-    constellation_tracking: 0.55,
+    star_gap: 2.85,
+    constellation_tracking: 0.825,
     // Faintest bucket whose labels are shown; see labels.js.
     mag_bucket: 11,
   },
@@ -131,9 +131,9 @@ export default {
     moon_track_width: 0.5,
     moon_track_dash: "0.9 1.6",
     label_day_circle: true,
-    label_size: 3.6,
-    label_tracking: 0.45,
-    label_clearance: 1.1,
+    label_size: 5.4,
+    label_tracking: 0.675,
+    label_clearance: 1.65,
     sun_label_deg: 205.0,
     moon_label_deg: 335.0,
   },
@@ -148,13 +148,13 @@ export default {
     rule: false,
     rule_stroke: "#1d3a49",
     rule_width: 0.4,
-    title_size: 3.2,
-    title_tracking: 1.1,
+    title_size: 4.8,
+    title_tracking: 1.65,
     title_gap: 4.0,
     title_space: 3.0,
     title_fill: "#1d3a49",
-    caption_size: 2.3,
-    tick_size: 2.0,
+    caption_size: 3.45,
+    tick_size: 3,
     ink: "#1d3a49",
     line_width: 0.35,
     sun: "#f0b429",
@@ -180,7 +180,7 @@ export default {
     zenith_width: 0.7,
     zenith_size: 2.2,
     caption_fill: "#1d3a49",
-    caption_size: 5.0,
+    caption_size: 7.5,
   },
 
   type: {
@@ -190,21 +190,21 @@ export default {
     body: "'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif",
     label: "'Iowan Old Style', Palatino, Georgia, serif",
 
-    title_size: 20.0,
-    title_tracking: 4.2,
+    title_size: 30,
+    title_tracking: 6.3,
     title_fill: "#1d3a49",
-    hemi_size: 7.0,
-    hemi_tracking: 2.6,
+    hemi_size: 10.5,
+    hemi_tracking: 3.9,
     hemi_fill: "#1d3a49",
-    scale_size: 3.6,
+    scale_size: 5.4,
     // The smallest type on the plate; nothing else goes below it.
-    constel_size: 3.4,
+    constel_size: 5.1,
     // The Latin name under the English one. Set to the same size rather than
     // stepped down, so nothing on the plate is smaller than a constellation
     // name -- the italic already tells the two lines apart.
     constel_alt_scale: 1.0,
     constel_fill: "#eee9d6",
-    star_size: 3.6,
+    star_size: 5.4,
     star_fill: "#f0ead7",
     constel_alt: "#cfe0e6",
   },

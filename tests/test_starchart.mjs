@@ -22,6 +22,7 @@ import { states } from "../web/starchart/bodies.js";
 import { horizonCurve, zenith } from "../web/starchart/horizon.js";
 import { defaultConfig, defaultTheme, makeObserver } from "../web/starchart/index.js";
 import { textWidth } from "../web/starchart/lettering.js";
+import { PANELS } from "../web/starchart/panels.js";
 import { Hemisphere, NORTH, SOUTH } from "../web/starchart/projection.js";
 import { buildChart } from "../web/starchart/render.js";
 
@@ -282,7 +283,10 @@ describe("document", () => {
     const ids = [...withPanels.matchAll(/id="(panel-[a-z-]+)"/g)]
       .map((m) => m[1]).filter((id) => !id.startsWith("panel-clip"));
     assert.equal(ids.length, new Set(ids).size, "a diagram was emitted twice");
-    assert.equal(ids.length, 7);
+    // Counted from the registry, not written down here: a hand-copied number
+    // just fails every time a diagram is added, which says nothing.
+    assert.equal(ids.length, Object.keys(PANELS).length);
+    assert.equal(new Set(ids).size, new Set(defaultConfig.panels.order).size);
   });
 
   it("fills the column between the title and the caption", () => {

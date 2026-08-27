@@ -47,6 +47,8 @@ function panelRules(pn, st, ty) {
       `font-size:${n(pn.caption_size)}px;text-anchor:middle`],
     [".panel-note", `fill:${pn.ink};font-family:${ty.body};` +
       `font-size:${n(pn.caption_size)}px;font-style:italic;text-anchor:middle`],
+    // Notation, set as something written rather than something printed.
+    [".panel-eq", `fill:${pn.ink};font-family:${ty.body};font-style:italic`],
     [".panel-tick", `fill:${pn.ink};font-family:${ty.body};` +
       `font-size:${n(pn.tick_size)}px;letter-spacing:0.3px;text-anchor:middle`],
     // Both fill and stroke: a shape is a flat fill when ruled and a set of
