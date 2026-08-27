@@ -302,7 +302,10 @@ function solarEclipse(box, theme, ctx) {
   const a = inner(box, theme);
   const cy = a.cy;
   const sunR = a.h * 0.34;
-  const sunX = a.x + sunR * 0.5;
+  // Clear of the edge by its own radius: the half-Sun belongs to the size
+  // comparison, where running off the panel is the point. Here it just looks
+  // clipped.
+  const sunX = a.x + sunR + 1.5;
   const earthR = sunR * 0.42;
   const earthX = a.x + a.w - earthR - 2;
   const moonR = earthR * 0.27;
@@ -337,9 +340,11 @@ function lunarEclipse(box, theme, ctx) {
   const a = inner(box, theme);
   const cy = a.cy;
   const sunR = a.h * 0.34;
-  const sunX = a.x + sunR * 0.5;
+  const sunX = a.x + sunR + 1.5;
   const earthR = sunR * 0.42;
-  const earthX = sunX + (a.w - sunR) * 0.45;
+  // Off what is left to the right of the Sun, not off the whole panel, or
+  // moving the Sun in pushes the shadow cone out through the far edge.
+  const earthX = sunX + (a.x + a.w - sunX) * 0.42;
   const moonR = earthR * 0.27;
 
   const cone = shadowCone(sunX, sunR, earthX, earthR, cy);
@@ -777,16 +782,22 @@ function spherical(box, theme, ctx) {
 function gravitation(box, theme, ctx) {
   const a = inner(box, theme, false);
   const P = pen(theme);
-  const cy = a.cy + a.h * 0.1;
-  const bigR = a.h * 0.17;
+  const cy = a.cy + a.h * 0.04;
+  const bigR = a.h * 0.13;
   const smallR = a.h * 0.075;
   const bigX = a.x + a.w * 0.24;
   const smallX = a.x + a.w * 0.76;
   const parts = [];
 
-  // The inverse square, drawn: rings of field thinning with distance.
-  for (let i = 1; i <= 5; i++) {
-    parts.push(P.ring(bigX, cy, bigR + i * bigR * 0.55, "panel-orbit", 0.5));
+  /* The inverse square, drawn: rings of field thinning with distance. Sized to
+   * the room actually available rather than to a multiple of the mass -- the
+   * outermost was two thirds of the panel height across and left through three
+   * of its four sides. */
+  const room = Math.min(bigX - a.x, cy - a.y, a.y + a.h - cy) - 2;
+  const rings = 5;
+  for (let i = 1; i <= rings; i++) {
+    parts.push(P.ring(bigX, cy, bigR + ((room - bigR) * i) / rings,
+                      "panel-orbit", 0.5));
   }
   parts.push(P.disc(bigX, cy, bigR, "panel-planet", { angle: -42, density: 1.5 }));
   parts.push(P.disc(smallX, cy, smallR, "panel-planet", { angle: 38, density: 1.1 }));
@@ -1000,6 +1011,77 @@ function kuiper(box, theme, ctx) {
   return frame(box, "", theme, parts.join(""));
 }
 
+/* ------------------------------------------------- pages of working
+ *
+ * Notation and nothing else. These exist to fill the patches of paper the
+ * drawings leave behind, and a construction in them would only compete with the
+ * plates -- so they are set as a page of working torn out and laid down.
+ */
+
+/** A diagram that is only its notation, centred in its box. */
+const working = (lines, { size = 1.25 } = {}) => (box, theme) => {
+  const a = inner(box, theme, false);
+  const px = theme.panels.caption_size * size;
+  // Centred vertically on what the lines will actually occupy, so a block of
+  // four and a block of eight both sit properly in their boxes.
+  const height = lines.reduce((t, l) => t + px * 1.6 * (l.text === "" ? 0.5
+    : ((typeof l === "string" ? 1 : l.scale) ?? 1)), 0);
+  return frame(box, "", theme,
+    scrawl(a.x + a.w * 0.06, a.cy - height / 2 + px, lines, px, theme));
+};
+
+const sub = (t) => `<tspan baseline-shift="sub" font-size="65%">${t}</tspan>`;
+const sup = (t) => `<tspan baseline-shift="super" font-size="65%">${t}</tspan>`;
+
+/** The two-body problem, as the four relations that actually get used. */
+const visViva = working([
+  `ε = <tspan font-size="88%">v²⁄2</tspan> − <tspan font-size="88%">GM⁄r</tspan> = − <tspan font-size="88%">GM⁄2a</tspan>`,
+  "",
+  { text: `v² = GM (<tspan font-size="88%">2⁄r</tspan> − <tspan font-size="88%">1⁄a</tspan>)`,
+    scale: 1.2, rule: true },
+  "",
+  `h = r × v = √(GM a (1 − e²))`,
+  `v${sub("esc")} = √(<tspan font-size="88%">2GM⁄r</tspan>)`,
+  "",
+  { text: `circular:  v = √(<tspan font-size="88%">GM⁄r</tspan>),  T = 2π √(<tspan font-size="88%">a³⁄GM</tspan>)`,
+    indent: 0 },
+]);
+
+/** Sidereal time: why the stars rise four minutes earlier each night. */
+const sidereal = working([
+  `θ(t) = θ${sub("0")} + ω (t − t${sub("0")}),   ω = <tspan font-size="88%">2π⁄T</tspan>${sub("sid")}`,
+  "",
+  { text: `<tspan font-size="88%">1⁄T</tspan>${sub("sid")} = <tspan font-size="88%">1⁄T</tspan>${sub("sol")} + <tspan font-size="88%">1⁄T</tspan>${sub("yr")}`,
+    scale: 1.15 },
+  { text: `⇒  T${sub("sid")} ≈ T${sub("sol")} − 4 min`, indent: 0.8 },
+  "",
+  `LST = θ + λ`,
+  { text: `H = LST − α`, scale: 1.2, rule: true },
+]);
+
+/** The magnitude scale the stars on the plates are sized by. */
+const magnitudes = working([
+  `F = <tspan font-size="88%">L⁄4πd²</tspan>`,
+  "",
+  `m${sub("1")} − m${sub("2")} = − 2.5 log (F${sub("1")} ⁄ F${sub("2")})`,
+  { text: `⇒  Δm = 5  is  ×100 in flux`, indent: 0.8 },
+  "",
+  { text: `m − M = 5 log (<tspan font-size="88%">d⁄10 pc</tspan>)`, scale: 1.2, rule: true },
+  "",
+  `d = <tspan font-size="88%">1⁄p</tspan>  pc,   p in arcsec`,
+]);
+
+/** The far end of the same scale. */
+const redshift = working([
+  `1 + z = <tspan font-size="88%">λ</tspan>${sub("obs")} ⁄ <tspan font-size="88%">λ</tspan>${sub("emit")} = <tspan font-size="88%">a(t</tspan>${sub("0")}<tspan font-size="88%">)⁄a(t</tspan>${sub("emit")}<tspan font-size="88%">)</tspan>`,
+  "",
+  { text: `v = H${sub("0")} d`, scale: 1.25, rule: true },
+  "",
+  `(<tspan font-size="88%">ȧ⁄a</tspan>)² = <tspan font-size="88%">8πGρ⁄3</tspan> − <tspan font-size="88%">kc²⁄a²</tspan> + <tspan font-size="88%">Λc²⁄3</tspan>`,
+  "",
+  { text: `<tspan font-size="88%">1⁄H</tspan>${sub("0")} ≈ 14 Gyr`, indent: 0.8 },
+]);
+
 /* ------------------------------------------------------------ registry */
 
 /** What each diagram wants to be, in millimetres.
@@ -1030,6 +1112,12 @@ export const PANEL_SIZES = {
   "kepler-equation": { w: 178, h: 84 },
   "spherical": { w: 180, h: 82 },
   "gaussian": { w: 168, h: 76 },
+  // Notation only, so they are sized by the longest line rather than by a
+  // drawing, and they are the ones to reach for when a gap needs filling.
+  "vis-viva": { w: 132, h: 72 },
+  "sidereal": { w: 138, h: 62 },
+  "magnitudes": { w: 130, h: 66 },
+  "redshift": { w: 146, h: 60 },
 };
 
 export const PANELS = {
@@ -1050,6 +1138,10 @@ export const PANELS = {
   "kepler-equation": keplerEquation,
   "spherical": spherical,
   "gaussian": gaussian,
+  "vis-viva": visViva,
+  "sidereal": sidereal,
+  "magnitudes": magnitudes,
+  "redshift": redshift,
 };
 
 /** Flow the diagrams across the sheet at their own sizes, wrapping.

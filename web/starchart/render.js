@@ -34,8 +34,11 @@ const LAYER_ORDER = [
   "layer-panels",
   "layer-plate", "layer-milkyway", "layer-grid", "layer-tropics", "layer-ecliptic",
   "layer-colures", "layer-moon-track", "layer-star-halos", "layer-stars",
+  // The horizon goes under the names, not over them. It is a broken red line
+  // crossing the whole plate, and on top it cut through every label it met.
+  "layer-horizon",
   "layer-constellation-labels", "layer-star-labels", "layer-rim",
-  "layer-hemi-labels", "layer-sun", "layer-moon", "layer-horizon",
+  "layer-hemi-labels", "layer-sun", "layer-moon",
 ];
 
 function drawMilkyWay(hemi, data) {

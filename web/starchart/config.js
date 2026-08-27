@@ -77,6 +77,8 @@ export default {
       "gravitation", "equal-areas", "spacetime", "black-hole", "kuiper",
       // Working: notation beside the construction it is about, to fill space.
       "euler", "epicycles", "kepler-equation", "spherical", "gaussian",
+      // Notation only, for the patches the drawings leave behind.
+      "vis-viva", "sidereal", "magnitudes", "redshift",
     ],
     // Where the flow starts, below the top margin.
     start_offset: 60.0,

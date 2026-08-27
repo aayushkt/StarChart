@@ -60,7 +60,7 @@ which measures about 35 ms.
 
 ### Arranging the poster
 
-**Hold shift.** It outlines every movable thing — the plates, the seventeen
+**Hold shift.** It outlines every movable thing — the plates, the twenty-one
 diagrams, the title, the caption — and arms dragging. Let go and dragging pans
 again. Layout editing is modal on purpose: without it every drag near a plate is
 a coin toss between moving the poster and moving the view, and the grabbable
@@ -173,7 +173,7 @@ web/starchart/    the library — ES modules, no build step
   labels.js       collision-avoiding label placement
   lettering.js    text set along an arc, glyph by glyph
   sketch.js       drawing a line the way a hand would
-  panels.js       the seventeen diagrams, and the pen they draw through
+  panels.js       the twenty-one diagrams, and the pen they draw through
   overlay.js      the date-and-place overlay
   style.js        the stylesheet embedded in the SVG
   svg.js          minimal SVG writer
@@ -321,6 +321,14 @@ triangle that open the difference is plainly visible. The Gaussian integral is
 the loosest tie of the five and is here as a piece of working: its curve is the
 sampled `e^(−x²)` rather than a drawn bell, since the area under *that* function
 is the quantity the page computes.
+
+Four more carry no drawing at all, only notation, and exist to fill the patches
+of paper the others leave behind: the vis-viva equation and the rest of the
+two-body relations, sidereal time, the magnitude scale, and redshift. Two of
+those describe the poster's own machinery. Sidereal time is how the horizon gets
+placed — `1/T_sid = 1/T_sol + 1/T_yr`, the Earth turning once more per year than
+there are solar days, which is why the stars rise four minutes earlier each
+night. The magnitude scale is how the star dots get their radii.
 
 The notation is set by a small routine that lays lines out left-aligned but not
 flush — each nudged sideways, dropped a hair off its baseline and rotated a

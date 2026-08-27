@@ -289,6 +289,25 @@ describe("document", () => {
     assert.equal(new Set(ids).size, new Set(defaultConfig.panels.order).size);
   });
 
+  it("draws the horizon under the names, not through them", () => {
+    // It is a broken red line crossing the whole plate. Painted last it cut
+    // through every label it met, which at poster size is most of them.
+    const { markup } = buildChart({
+      config: defaultConfig, theme: defaultTheme, data,
+      observer: makeObserver(defaultConfig),
+    });
+    const at = (id) => markup.indexOf(`id="${id}"`);
+    assert.ok(at("layer-horizon") > 0, "no horizon layer");
+    assert.ok(at("layer-star-labels") > 0, "no star label layer");
+    assert.ok(at("layer-horizon") < at("layer-star-labels"),
+      "the horizon paints over the star names");
+    assert.ok(at("layer-horizon") < at("layer-constellation-labels"),
+      "the horizon paints over the constellation names");
+    // Still over the stars themselves, which it has to cross to mean anything.
+    assert.ok(at("layer-stars") < at("layer-horizon"),
+      "the horizon went under the stars too");
+  });
+
   it("fills the column between the title and the caption", () => {
     // Equal clearance above and below, and whatever gap is asked for between --
     // zero by default, so the two rims touch. The degree-scale band counts as
