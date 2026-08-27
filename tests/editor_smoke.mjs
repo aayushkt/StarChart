@@ -479,9 +479,50 @@ const handleCount = chart().querySelectorAll(".handle-box").length;
 handleCount === MOVABLE
   ? ok(`${handleCount} handles (the plates + ${DIAGRAMS.length} diagrams + title + caption)`)
   : fail(`${handleCount} handles`);
+// Shift-click is also the browser's extend-the-selection gesture, so arming a
+// drag used to sweep a highlight across the sidebar and everything else.
+d.body.classList.contains("editing")
+  ? ok("holding shift makes the page unselectable")
+  : fail("the page is still selectable while dragging");
+{
+  const css = [...d.querySelectorAll("style")].map((n) => n.textContent).join("");
+  const rule = /body\.editing\s*\{[^}]*user-select:\s*none/.test(css);
+  const exempt = /body\.editing input[^{]*\{[^}]*user-select:\s*text/.test(css);
+  rule && exempt
+    ? ok("fields stay selectable, so the ruler can still be typed into")
+    : fail(rule ? "the exemption for fields is missing" : "no rule suppressing selection");
+}
+{
+  // The drag must also cancel the default, or the pointerdown itself starts a
+  // selection before the class has any say.
+  const down = new window.PointerEvent("pointerdown", {
+    button: 0, pointerId: 77, clientX: 700, clientY: 300,
+    bubbles: true, cancelable: true, shiftKey: true,
+  });
+  stage.dispatchEvent(down);
+  down.defaultPrevented
+    ? ok("a shift-drag cancels the default gesture")
+    : fail("shift-pointerdown was not prevented");
+  stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 77, bubbles: true }));
+}
+{
+  const down = new window.PointerEvent("pointerdown", {
+    button: 0, pointerId: 78, clientX: 700, clientY: 300,
+    bubbles: true, cancelable: true, shiftKey: false,
+  });
+  stage.dispatchEvent(down);
+  !down.defaultPrevented
+    ? ok("an ordinary pan does not")
+    : fail("a plain drag was prevented too");
+  stage.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 78, bubbles: true }));
+}
+
 shift("keyup");
 !chart().querySelector("#layer-handles")
   ? ok("releasing shift hides them") : fail("handles stuck on");
+!d.body.classList.contains("editing")
+  ? ok("releasing it makes the page selectable again")
+  : fail("the page stayed unselectable");
 
 
 // Every diagram must be grabbable, not just the one whose artwork happens to

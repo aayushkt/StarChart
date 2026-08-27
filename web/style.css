@@ -262,6 +262,18 @@ input[type="range"]::-moz-range-thumb {
      put it back, so the whole canvas jumps up and stays there. */
   overflow-anchor: none;
 }
+/* Nothing on the canvas is text to be selected, and a pan that leaves a blue
+   highlight behind it reads as a bug. */
+.stage-scroll { user-select: none; -webkit-user-select: none; }
+
+/* While shift is held the whole page stops being selectable, since shift-click
+   extends a selection from wherever it was last anchored. Fields are exempt:
+   the ruler asks you to type a measurement into one. */
+body.editing { user-select: none; -webkit-user-select: none; }
+body.editing input, body.editing textarea {
+  user-select: text; -webkit-user-select: text;
+}
+
 .stage-scroll.dragging { cursor: grabbing; }
 .stage-scroll.moving { cursor: grabbing; }
 .stage-scroll.resizing { cursor: nwse-resize; }

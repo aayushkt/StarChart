@@ -1206,6 +1206,9 @@ function initViewport() {
     // Layout editing is deliberately modal. Without it, every drag near a plate
     // is a coin toss between moving the poster and moving the view, and the
     // grabbable regions are invisible.
+    // Stops the drag starting a selection, and stops the focus ring landing on
+    // whatever was under the pointer.
+    if (event.shiftKey) event.preventDefault();
     const grip = event.shiftKey ? gripFor(event.target) : null;
     const handle = grip ??
       (event.shiftKey ? handleFor(event.target, event.clientX, event.clientY) : null);
@@ -1339,6 +1342,12 @@ function initViewport() {
     if (state.editing === on) return;
     state.editing = on;
     el.classList.toggle("editing", on);
+    // Shift-click is also the browser's "extend the selection" gesture, so
+    // arming a layout drag would otherwise sweep a highlight across the whole
+    // page. Suppressed on the body rather than the canvas because the anchor
+    // for that selection can be anywhere -- a sidebar label, a heading.
+    document.body.classList.toggle("editing", on);
+    if (on) window.getSelection()?.removeAllRanges();
     drawHandles();
   };
   window.addEventListener("keydown", (e) => { if (e.key === "Shift") setEditing(true); });
