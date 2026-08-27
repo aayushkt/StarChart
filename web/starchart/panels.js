@@ -462,6 +462,317 @@ const eq = (x, y, content, size, cls = "panel-eq") =>
   `<text x="${fmt(x)}" y="${fmt(y)}" class="${cls}" ` +
   `font-size="${fmt(size)}" text-anchor="middle">${content}</text>`;
 
+/* A block of working, set as a page rather than a table.
+ *
+ * The lines are left-aligned but not flush: each is nudged a fraction of a
+ * millimetre sideways, dropped a hair off its baseline and rotated a fraction
+ * of a degree. That irregularity is most of the difference between working and
+ * a list of results. It is seeded from the block's own position, so a re-render
+ * after moving a slider does not reshuffle the page.
+ *
+ * A line is a string, or an object: `indent` in ems, `scale` against the base
+ * size, `rule` to underline it the way a result gets underlined. An empty
+ * string is a half-line of air.
+ */
+function scrawl(x, y, lines, size, theme, { lead = 1.6, wander = 1 } = {}) {
+  const r = sketch.rng(sketch.seedFrom([x, y, lines.length]));
+  const P = pen(theme);
+  const out = [];
+  let cy = y;
+
+  for (const raw of lines) {
+    const l = typeof raw === "string" ? { text: raw } : raw;
+    if (!l.text) { cy += size * lead * 0.5; continue; }
+    const s = size * (l.scale ?? 1);
+    const lx = x + (l.indent ?? 0) * size + (r() - 0.5) * wander * 1.5;
+    const ly = cy + (r() - 0.5) * wander * 0.8;
+    const tilt = (r() - 0.5) * wander * 1.5;
+    out.push(
+      `<text x="${fmt(lx)}" y="${fmt(ly)}" class="panel-eq" font-size="${fmt(s)}" ` +
+      `transform="rotate(${fmt(tilt)} ${fmt(lx)} ${fmt(ly)})">${l.text}</text>`);
+    if (l.rule) {
+      // Measured off the text with its markup stripped -- close enough for a
+      // line drawn under it by hand, which is not meant to be flush anyway.
+      const w = textWidth(l.text.replace(/<[^>]*>/g, ""), s);
+      out.push(P.line(lx - s * 0.15, ly + s * 0.42, lx + w * 0.98, ly + s * 0.42,
+                      "panel-axis", 0.75));
+    }
+    cy += size * lead * (l.scale ?? 1);
+  }
+  return out.join("");
+}
+
+/** Euler's formula, with the unit circle it is a statement about. */
+function euler(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const size = theme.panels.caption_size * 1.15;
+  const R = Math.min(a.w * 0.2, a.h * 0.34);
+  const cx = a.x + a.w * 0.22;
+  const cy = a.cy + a.h * 0.02;
+  const th = 52 * RAD;
+  const px = cx + R * Math.cos(th);
+  const py = cy - R * Math.sin(th);
+  const parts = [];
+
+  parts.push(P.ring(cx, cy, R, "panel-orbit", 0.7));
+  parts.push(P.line(cx - R * 1.14, cy, cx + R * 1.18, cy, "panel-axis", 0.6));
+  parts.push(P.line(cx, cy + R * 1.14, cx, cy - R * 1.18, "panel-axis", 0.6));
+  // The radius, and the two legs it is the hypotenuse of: cos on the real
+  // axis, sin up the imaginary one. That is the whole content of the formula.
+  parts.push(P.line(cx, cy, px, py, "panel-ray", 1.1));
+  parts.push(P.line(px, py, px, cy, "panel-axis", 0.55));
+  parts.push(P.line(cx, py, px, py, "panel-axis", 0.55));
+  parts.push(circle(px, py, 0.75, { class_: "panel-planet" }));
+  // The angle itself, as a short arc at the origin.
+  const arc = [];
+  for (let i = 0; i <= 14; i++) {
+    const t = (th * i) / 14;
+    arc.push([cx + R * 0.3 * Math.cos(t), cy - R * 0.3 * Math.sin(t)]);
+  }
+  parts.push(P.curve(arc, "panel-axis", 0.5));
+  parts.push(eq(cx + R * 0.44, cy - R * 0.14, "θ", size));
+
+  parts.push(scrawl(a.x + a.w * 0.46, a.y + a.h * 0.2, [
+    "e<tspan baseline-shift=\"super\" font-size=\"70%\">iθ</tspan> = Σ (iθ)<tspan baseline-shift=\"super\" font-size=\"70%\">n</tspan>⁄ n!",
+    { text: "= (1 − θ²⁄2! + θ⁴⁄4! − …)", indent: 0.9 },
+    { text: "+ i (θ − θ³⁄3! + θ⁵⁄5! − …)", indent: 0.9 },
+    "",
+    "e<tspan baseline-shift=\"super\" font-size=\"70%\">iθ</tspan> = cos θ + i sin θ",
+    { text: "z(t) = a e<tspan baseline-shift=\"super\" font-size=\"70%\">iωt</tspan>", indent: 0.9 },
+    "",
+    { text: "θ = π :", indent: 0 },
+    { text: "e<tspan baseline-shift=\"super\" font-size=\"70%\">iπ</tspan> + 1 = 0",
+      indent: 1.2, scale: 1.25, rule: true },
+  ], size, theme));
+  return frame(box, "", theme, parts.join(""));
+}
+
+/** The Gaussian integral, done the only way it can be: in polar coordinates. */
+function gaussian(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const size = theme.panels.caption_size * 1.15;
+  const cx = a.x + a.w * 0.21;
+  const base = a.y + a.h * 0.78;
+  const half = Math.min(a.w * 0.17, a.h * 0.42);
+  const height = a.h * 0.5;
+  const parts = [];
+
+  // The curve is the actual e^(-x^2), sampled -- a drawn bell would be a
+  // different function, and this diagram is about that one.
+  const bell = [];
+  for (let i = 0; i <= 72; i++) {
+    const x = -2.6 + (5.2 * i) / 72;
+    bell.push([cx + (x / 2.6) * half, base - Math.exp(-x * x) * height]);
+  }
+  parts.push(P.curve(bell, "panel-orbit", 0.8));
+  parts.push(P.line(cx - half * 1.15, base, cx + half * 1.15, base, "panel-axis", 0.6));
+  parts.push(P.line(cx, base + 2.5, cx, base - height * 1.08, "panel-axis", 0.6));
+  // Shaded, because the quantity being computed is the area under it. Through
+  // the pen rather than around it: hatching it directly meant the ruled sheet
+  // still emitted hand-drawn strokes, which is the one thing hand:0 promises
+  // it will not do.
+  parts.push(P.shape(bell.concat([[cx + half, base], [cx - half, base]]),
+                     "panel-umbra", { hatch: -62, density: 2.1 }));
+
+  parts.push(scrawl(a.x + a.w * 0.44, a.y + a.h * 0.19, [
+    "I = ∫<tspan baseline-shift=\"sub\" font-size=\"65%\">−∞</tspan><tspan baseline-shift=\"super\" font-size=\"65%\">∞</tspan> e<tspan baseline-shift=\"super\" font-size=\"70%\">−x²</tspan> dx",
+    "",
+    "I² = ∫∫ e<tspan baseline-shift=\"super\" font-size=\"70%\">−(x²+y²)</tspan> dx dy",
+    { text: "= ∫<tspan baseline-shift=\"sub\" font-size=\"65%\">0</tspan><tspan baseline-shift=\"super\" font-size=\"65%\">2π</tspan> ∫<tspan baseline-shift=\"sub\" font-size=\"65%\">0</tspan><tspan baseline-shift=\"super\" font-size=\"65%\">∞</tspan> e<tspan baseline-shift=\"super\" font-size=\"70%\">−r²</tspan> r dr dθ",
+      indent: 1.0 },
+    { text: "= 2π · ½ = π", indent: 1.0 },
+    "",
+    { text: "I = √π", indent: 0.6, scale: 1.25, rule: true },
+  ], size, theme));
+  return frame(box, "", theme, parts.join(""));
+}
+
+/** Epicycles: a Fourier series is the Ptolemaic construction, exactly.
+ *
+ * Not a loose analogy. A sum of terms c_n e^(i n omega t) is a circle whose
+ * centre rides a circle whose centre rides a circle, which is the deferent and
+ * epicycle drawing verbatim -- and the retrograde loop it makes is the one Mars
+ * appears to trace.
+ */
+function epicycles(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const size = theme.panels.caption_size * 1.15;
+  const cx = a.x + a.w * 0.2;
+  const cy = a.cy + a.h * 0.02;
+  const R = Math.min(a.w * 0.15, a.h * 0.36);
+  // A deferent and one epicycle. Three terms drew a rosette that read as
+  // ornament; two draw the retrograde loops, which is the thing being claimed.
+  const terms = [[R, 1], [R * 0.38, 6]];
+  const parts = [];
+
+  parts.push(P.ring(cx, cy, R, "panel-axis", 0.5));
+  const at = (t) => {
+    let x = cx, y = cy;
+    for (const [r, k] of terms) { x += r * Math.cos(k * t); y += r * Math.sin(k * t); }
+    return [x, y];
+  };
+  const traced = [];
+  for (let i = 0; i <= 400; i++) traced.push(at((i / 400) * Math.PI * 2));
+  parts.push(P.curve(traced, "panel-orbit", 0.75));
+
+  // One instant frozen: the chain of radii that puts the body where it is.
+  const t0 = 0.62;
+  let px = cx, py = cy;
+  for (const [r, k] of terms) {
+    const nx = px + r * Math.cos(k * t0);
+    const ny = py + r * Math.sin(k * t0);
+    if (r < R) parts.push(P.ring(px, py, r, "panel-axis", 0.4));
+    parts.push(P.line(px, py, nx, ny, "panel-ray", 0.9));
+    parts.push(circle(px, py, 0.5, { class_: "panel-planet" }));
+    px = nx; py = ny;
+  }
+  parts.push(circle(px, py, 1.0, { class_: "panel-planet" }));
+
+  parts.push(scrawl(a.x + a.w * 0.42, a.y + a.h * 0.2, [
+    "z(t) = Σ c<tspan baseline-shift=\"sub\" font-size=\"65%\">n</tspan> e<tspan baseline-shift=\"super\" font-size=\"70%\">i n ω t</tspan>",
+    { text: "= c<tspan baseline-shift=\"sub\" font-size=\"65%\">1</tspan> e<tspan baseline-shift=\"super\" font-size=\"70%\">iωt</tspan> + c<tspan baseline-shift=\"sub\" font-size=\"65%\">2</tspan> e<tspan baseline-shift=\"super\" font-size=\"70%\">2iωt</tspan> + …",
+      indent: 0.9 },
+    "",
+    "c<tspan baseline-shift=\"sub\" font-size=\"65%\">n</tspan> = <tspan font-size=\"85%\">1⁄2π</tspan> ∫<tspan baseline-shift=\"sub\" font-size=\"65%\">0</tspan><tspan baseline-shift=\"super\" font-size=\"65%\">2π</tspan> z(t) e<tspan baseline-shift=\"super\" font-size=\"70%\">−i n ω t</tspan> dt",
+    "",
+    { text: "deferent + epicycle = Σ", rule: true },
+  ], size, theme));
+  return frame(box, "", theme, parts.join(""));
+}
+
+/** Kepler's equation, with the construction that defines the eccentric anomaly.
+ *
+ * The transcendental one: given where a body is in time, M follows immediately
+ * and E does not, and there is no closed form for it. The iteration below is
+ * what everybody actually runs, and it converges in three or four passes at
+ * eccentricities like this one.
+ */
+function keplerEquation(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const size = theme.panels.caption_size * 1.15;
+  const ecc = 0.6;
+  const A = Math.min(a.w * 0.17, a.h * 0.4);
+  const B = A * Math.sqrt(1 - ecc * ecc);
+  const cx = a.x + a.w * 0.21;
+  const cy = a.cy + a.h * 0.02;
+  const fx = cx - A * ecc;          // the occupied focus
+  const E = 58 * RAD;
+  const qx = cx + A * Math.cos(E), qy = cy - A * Math.sin(E);
+  const px = qx, py = cy - B * Math.sin(E);
+  const parts = [];
+
+  // The auxiliary circle, and the orbit inscribed in it. The eccentric anomaly
+  // is an angle on the circle, not on the ellipse -- which is the entire reason
+  // the circle is drawn at all.
+  parts.push(P.ring(cx, cy, A, "panel-axis", 0.5));
+  parts.push(P.curve(ellipsePoints(cx, cy, A, B, 72).concat([[cx + A, cy]]),
+                     "panel-orbit", 0.8));
+  parts.push(P.line(cx - A * 1.08, cy, cx + A * 1.08, cy, "panel-axis", 0.5));
+  parts.push(P.line(cx, cy, qx, qy, "panel-ray", 0.9));
+  // The ordinate that carries the circle's point down onto the ellipse.
+  parts.push(P.line(qx, qy, qx, cy, "panel-axis", 0.45));
+  parts.push(P.line(fx, cy, px, py, "panel-ray", 0.9));
+  parts.push(circle(qx, qy, 0.6, { class_: "panel-planet" }));
+  parts.push(circle(px, py, 1.0, { class_: "panel-planet" }));
+  parts.push(P.disc(fx, cy, A * 0.08, "panel-sun", { angle: -40, density: 0.9 }));
+  parts.push(eq(cx + A * 0.32, cy - A * 0.11, "E", size));
+  parts.push(eq(fx + A * 0.36, cy - A * 0.1, "ν", size));
+
+  parts.push(scrawl(a.x + a.w * 0.44, a.y + a.h * 0.19, [
+    "M = <tspan font-size=\"85%\">2π⁄T</tspan> (t − t<tspan baseline-shift=\"sub\" font-size=\"65%\">0</tspan>)",
+    "",
+    { text: "M = E − e sin E", scale: 1.2, rule: true },
+    "",
+    { text: "no closed form for E :", indent: 0 },
+    { text: "E ← E − <tspan font-size=\"90%\">(E − e sin E − M)⁄(1 − e cos E)</tspan>",
+      indent: 0.8 },
+    "",
+    { text: "tan <tspan font-size=\"85%\">ν⁄2</tspan> = √<tspan font-size=\"85%\">((1+e)⁄(1−e))</tspan> tan <tspan font-size=\"85%\">E⁄2</tspan>",
+      indent: 0 },
+  ], size, theme));
+  return frame(box, "", theme, parts.join(""));
+}
+
+/** The middle of a run of points, lifted clear of the line it labels. */
+function midOf(points) {
+  const m = points[Math.floor(points.length / 2)];
+  return [m[0], m[1] - 1.6];
+}
+
+/** The spherical triangle this chart draws its own horizon with.
+ *
+ * Pole, zenith and star. The law of cosines on that triangle is what turns a
+ * declination and an hour angle into an altitude, which is the calculation
+ * behind the horizon curve on the plates above -- so the poster carries its own
+ * working in the margin.
+ */
+function spherical(box, theme, ctx) {
+  const a = inner(box, theme, false);
+  const P = pen(theme);
+  const size = theme.panels.caption_size * 1.15;
+  const R = Math.min(a.w * 0.19, a.h * 0.42);
+  const cx = a.x + a.w * 0.21;
+  const cy = a.cy + a.h * 0.02;
+  const parts = [];
+
+  const norm = (v) => { const m = Math.hypot(...v); return v.map((c) => c / m); };
+  const proj = ([x, y]) => [cx + R * x, cy - R * y];
+  // Three vertices, all on the near face of the sphere.
+  const Pole = norm([-0.12, 0.82, 0.56]);
+  const Zen = norm([-0.62, 0.3, 0.72]);
+  const Star = norm([0.52, -0.22, 0.83]);
+
+  /* Great-circle arcs, by slerp and orthographic projection. A straight line
+   * between the two projected points is the wrong curve, and on a triangle this
+   * open the difference is plainly visible. */
+  const arc = (u, v, n = 28) => {
+    const dot = Math.max(-1, Math.min(1, u.reduce((t, c, i) => t + c * v[i], 0)));
+    const om = Math.acos(dot);
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const s1 = Math.sin((1 - t) * om) / Math.sin(om);
+      const s2 = Math.sin(t * om) / Math.sin(om);
+      out.push(proj([u[0] * s1 + v[0] * s2, u[1] * s1 + v[1] * s2]));
+    }
+    return out;
+  };
+
+  parts.push(P.ring(cx, cy, R, "panel-axis", 0.5));
+  // The equator seen near edge-on, so the sphere reads as one.
+  parts.push(P.curve(ellipsePoints(cx, cy, R, R * 0.3, 60).concat([[cx + R, cy]]),
+                     "panel-axis", 0.35));
+  for (const [u, v] of [[Pole, Zen], [Pole, Star], [Zen, Star]]) {
+    parts.push(P.curve(arc(u, v), "panel-orbit", 0.85));
+  }
+  for (const [v, label, dx, dy] of [[Pole, "P", 0, -2.6], [Zen, "Z", -2.8, -1.2],
+                                    [Star, "S", 2.6, 1.6]]) {
+    const [x, y] = proj(v);
+    parts.push(circle(x, y, 0.8, { class_: "panel-planet" }));
+    parts.push(eq(x + dx, y + dy, label, size));
+  }
+  // The sides, named for what they are: the co-latitude, the polar distance,
+  // and the zenith distance the whole calculation is after.
+  parts.push(eq(...midOf(arc(Pole, Zen)), "90−φ", size * 0.8));
+  parts.push(eq(...midOf(arc(Pole, Star)), "90−δ", size * 0.8));
+  parts.push(eq(...midOf(arc(Zen, Star)), "90−h", size * 0.8));
+
+  parts.push(scrawl(a.x + a.w * 0.44, a.y + a.h * 0.2, [
+    "cos c = cos a cos b + sin a sin b cos C",
+    "",
+    { text: "a = 90−φ,  b = 90−δ,  C = H :", indent: 0 },
+    { text: "sin h = sin φ sin δ + cos φ cos δ cos H", scale: 1.1, indent: 0.4,
+      rule: true },
+    "",
+    { text: "h = 0  ⇒  the horizon", indent: 0.4 },
+  ], size, theme));
+  return frame(box, "", theme, parts.join(""));
+}
+
 /** Newton's law of gravitation, with the two masses that motivate it. */
 function gravitation(box, theme, ctx) {
   const a = inner(box, theme, false);
@@ -712,6 +1023,13 @@ export const PANEL_SIZES = {
   "black-hole": { w: 150, h: 88 },
   "equal-areas": { w: 140, h: 82 },
   "kuiper": { w: 128, h: 108 },
+  // The working blocks are wide and short: a page of notation beside a small
+  // construction, which is the shape that reading them wants.
+  "euler": { w: 168, h: 76 },
+  "epicycles": { w: 172, h: 82 },
+  "kepler-equation": { w: 178, h: 84 },
+  "spherical": { w: 180, h: 82 },
+  "gaussian": { w: 168, h: 76 },
 };
 
 export const PANELS = {
@@ -727,6 +1045,11 @@ export const PANELS = {
   "black-hole": blackHole,
   "equal-areas": equalAreas,
   "kuiper": kuiper,
+  "euler": euler,
+  "epicycles": epicycles,
+  "kepler-equation": keplerEquation,
+  "spherical": spherical,
+  "gaussian": gaussian,
 };
 
 /** Flow the diagrams across the sheet at their own sizes, wrapping.

@@ -75,6 +75,8 @@ export default {
       "solar-eclipse", "lunar-eclipse", "earth-revolution", "moon-illumination",
       // Marginalia: a construction and an equation each, no captions.
       "gravitation", "equal-areas", "spacetime", "black-hole", "kuiper",
+      // Working: notation beside the construction it is about, to fill space.
+      "euler", "epicycles", "kepler-equation", "spherical", "gaussian",
     ],
     // Where the flow starts, below the top margin.
     start_offset: 60.0,

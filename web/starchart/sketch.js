@@ -19,7 +19,7 @@
 import { fmt } from "./svg.js";
 
 /** Mulberry32: small, fast, and good enough for wobble. */
-function rng(seed) {
+export function rng(seed) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -30,7 +30,7 @@ function rng(seed) {
 }
 
 /** A seed from a shape's own numbers, so its wobble never changes. */
-function seedFrom(numbers) {
+export function seedFrom(numbers) {
   let h = 2166136261;
   for (const n of numbers) {
     const v = Math.round(n * 64);

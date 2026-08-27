@@ -60,7 +60,7 @@ which measures about 35 ms.
 
 ### Arranging the poster
 
-**Hold shift.** It outlines every movable thing — the plates, the twelve
+**Hold shift.** It outlines every movable thing — the plates, the seventeen
 diagrams, the title, the caption — and arms dragging. Let go and dragging pans
 again. Layout editing is modal on purpose: without it every drag near a plate is
 a coin toss between moving the poster and moving the view, and the grabbable
@@ -173,7 +173,7 @@ web/starchart/    the library — ES modules, no build step
   labels.js       collision-avoiding label placement
   lettering.js    text set along an arc, glyph by glyph
   sketch.js       drawing a line the way a hand would
-  panels.js       the twelve diagrams, and the pen they draw through
+  panels.js       the seventeen diagrams, and the pen they draw through
   overlay.js      the date-and-place overlay
   style.js        the stylesheet embedded in the SVG
   svg.js          minimal SVG writer
@@ -283,7 +283,11 @@ eclipses, Earth's revolution, and the illumination of the Moon. Five more are
 not from the original and carry no captions, only their notation — Newtonian
 gravitation as nested inverse-square field lines, Kepler's equal areas, a
 spacetime grid drawn down into a well, light bending past a black hole, and the
-Kuiper belt's eccentric orbits. They are generated from real figures rather
+Kuiper belt's eccentric orbits. Five more again are pages of working, set for
+the empty bands beside the plates, and every one of them is about the sky rather
+than merely near it: Euler's formula over the unit circle it is a statement
+about, epicycles, Kepler's equation, the spherical law of cosines, and the
+Gaussian integral. They are generated from real figures rather
 than traced — the planets are to true
 relative size and true relative orbital distance, and the Moon phases are
 geometric. The eclipse diagrams are schematic in their proportions, because at
@@ -300,6 +304,29 @@ enough to fit beside the horizon, 4GM/c²b asks for a bend of over a hundred
 degrees, which is far outside where that formula holds. The factor buys a
 legible angle, and the asymmetric shape — straight on the way in, leaving at
 the deflection angle — is the one the geometry actually has.
+
+The five pages of working are drawn the same way. Euler's construction is the
+formula's own content: the radius is the hypotenuse, and its two legs are the
+cosine on the real axis and the sine up the imaginary one. The epicycle panel is
+not an analogy — a sum of terms `c_n e^(inωt)` *is* a circle riding a circle,
+which is the Ptolemaic drawing in modern notation, and the loops in the traced
+path are the retrograde motion that construction exists to explain. Kepler's
+equation gets the auxiliary circle, because the eccentric anomaly is an angle on
+that circle and not on the ellipse, which is the whole reason it is drawn. The
+spherical triangle is the one this chart computes its own horizon with: pole,
+zenith, star, and the law of cosines on it reduces to `sin h = sin φ sin δ +
+cos φ cos δ cos H` — set `h = 0` and that is the curve on the plates above. Its
+arcs are slerped and projected rather than drawn as straight lines, because on a
+triangle that open the difference is plainly visible. The Gaussian integral is
+the loosest tie of the five and is here as a piece of working: its curve is the
+sampled `e^(−x²)` rather than a drawn bell, since the area under *that* function
+is the quantity the page computes.
+
+The notation is set by a small routine that lays lines out left-aligned but not
+flush — each nudged sideways, dropped a hair off its baseline and rotated a
+fraction of a degree, seeded from the block's own position so it never
+reshuffles between renders. That irregularity is most of the difference between
+a page of working and a table of results.
 
 Next: planets plotted on the plates themselves.
 
