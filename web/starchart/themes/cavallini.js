@@ -28,7 +28,8 @@ export default {
     // Age, generated in the file rather than photographed into it: broad damp
     // blotches, a finer mottle, tooth in the fibre, and darker edges. All of it
     // behind the line work, except the edge wear, which falls over everything.
-    age: { stain: 0, foxing: 0, tooth: 0, wear: 0 },
+    // The lithograph is printed on clean stock: no scan, no wear.
+    age: { paper: 0, wear: 0 },
   },
 
   plate: {

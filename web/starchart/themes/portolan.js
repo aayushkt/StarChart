@@ -39,18 +39,19 @@ export default {
     // blotches, a finer mottle, tooth in the fibre, and darker edges. All of it
     // behind the line work, except the edge wear, which falls over everything.
     age: {
-      stain: 0.85,
-      foxing: 0.4,
-      tooth: 0.22,
-      wear: 0.6,
-      // Two hues, not one at two strengths: damp browns and the grey-green of
-      // foxed rag are different colours.
+      // Scanned paper, mirror-tiled at two sizes. See textures.js.
+      paper: 1.0,
+      under: 0.55,
+      // Big enough that only a couple of mirror axes fall on the sheet;
+      // small enough that the scan still carries about 170 pixels per inch.
+      tile: 203,
+      under_tile: 139,
+      // Edge darkening on top, with a torn boundary.
+      wear: 0.32,
       colour: "#6b4a22",
-      cool_colour: "#4e4629",
-      fox_colour: "#5a3312",
-      wear_start: 42,
-      wear_reach: 70,
-      wear_ragged: 55,
+      wear_start: 48,
+      wear_reach: 72,
+      wear_ragged: 48,
       wear_frequency: 0.011,
       seed: 7,
     },

@@ -11,6 +11,7 @@ import { arcText } from "./lettering.js";
 import { caption, drawOverlay } from "./overlay.js";
 import { drawPanels } from "./panels.js";
 import * as sketch from "./sketch.js";
+import { PAPER_A, PAPER_B } from "./textures.js";
 import { Hemisphere, NORTH, stackedPair } from "./projection.js";
 import { drawColures, drawEcliptic, drawSmallCircles } from "./reference.js";
 import { LAYERS, stylesheet } from "./style.js";
@@ -167,63 +168,46 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
 
   body.push(svg.rect(0, 0, page.width, page.height, { class_: "page-bg" }));
 
-  /* Age, generated rather than photographed.
+  /* Paper.
    *
-   * A flat wash of noise reads as noise. What reads as a handled sheet is
-   * unevenness at several scales at once: broad blotches where it was damp,
-   * a finer mottle through the body of the paper, tooth in the fibre, and
-   * edges darker than the middle from being picked up by them.
+   * This was simulated for a while -- turbulence at several scales, mapped into
+   * the alpha of two browns. It was a decent imitation and still read as one.
+   * Ageing is the accumulated history of a physical object, and the honest way
+   * to have it is to photograph paper that already has it.
    *
-   * Each layer is a turbulence whose luminance is mapped into the *alpha* of a
-   * fixed brown, rather than drawn as grey and blended. That distinction
-   * matters: the blend-mode version needs `mix-blend-mode`, which a good deal
-   * of SVG tooling ignores, and silently degrades to flat grey. This composites
-   * with ordinary alpha and works anywhere.
+   * Two scans, mirror-tiled. A single tile repeats visibly however good it is;
+   * mirroring makes any tile seamless without touching a pixel, at the cost of
+   * a symmetry that is itself readable. So the second scan sits underneath at a
+   * different size and turned ninety degrees: the two periods do not share a
+   * factor, so nothing lines up anywhere on the sheet.
    */
-  const wash = (id, frequency, octaves, seed, colour, slope, bias) => {
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(colour.slice(i, i + 2), 16) / 255);
+  const age = pg.age ?? {};
+  const paperTile = (id, href, size, aspect, rotate, seedShift) => {
+    const w = size;
+    const h = size * aspect;
+    const quad = `<image href="${href}" x="0" y="0" width="${svg.fmt(w)}" ` +
+      `height="${svg.fmt(h)}" preserveAspectRatio="none"/>`;
     return (
-      `<filter id="${id}" x="0" y="0" width="100%" height="100%">` +
-      `<feTurbulence type="fractalNoise" baseFrequency="${svg.fmt(frequency, 5)}" ` +
-      `numOctaves="${octaves}" seed="${seed}" result="t"/>` +
-      `<feColorMatrix in="t" type="matrix" values="` +
-      `0 0 0 0 ${svg.fmt(r, 4)} 0 0 0 0 ${svg.fmt(g, 4)} 0 0 0 0 ${svg.fmt(b, 4)} ` +
-      `${svg.fmt(slope, 4)} ${svg.fmt(slope * 0.55, 4)} 0 0 ${svg.fmt(bias, 4)}"/>` +
-      `</filter>`
+      `<pattern id="${id}" patternUnits="userSpaceOnUse" ` +
+      `width="${svg.fmt(w * 2)}" height="${svg.fmt(h * 2)}" ` +
+      `patternTransform="rotate(${svg.fmt(rotate)}) translate(${svg.fmt(seedShift)},0)">` +
+      quad +
+      `<g transform="translate(${svg.fmt(w * 2)},0) scale(-1,1)">${quad}</g>` +
+      `<g transform="translate(0,${svg.fmt(h * 2)}) scale(1,-1)">${quad}</g>` +
+      `<g transform="translate(${svg.fmt(w * 2)},${svg.fmt(h * 2)}) scale(-1,-1)">${quad}</g>` +
+      `</pattern>`
     );
   };
 
-  const age = pg.age ?? {};
-  const seed = age.seed ?? 7;
-  const sheet = () => [0, 0, page.width, page.height];
-  const aged = [];
-
-  /* Six layers, and the reason there are six is that unevenness at one scale
-   * still reads as noise. A handled sheet is uneven at every scale at once, and
-   * in more than one hue -- the damp browns and the grey-green of foxed rag are
-   * different colours, not one colour at two strengths. */
-  const layer = (id, cls, freq, octaves, offset, colour, slope, bias) => {
-    defs.push(wash(id, freq, octaves, seed + offset, colour, slope, bias));
-    aged.push(svg.rect(...sheet(), { class_: cls, filter: `url(#${id})` }));
-  };
-
-  const warm = age.colour ?? "#6b4a22";
-  const cool = age.cool_colour ?? "#4e4629";
-
-  if ((age.stain ?? 0) > 0) {
-    layer("age-blotch", "age-blotch", 0.004, 4, 0, warm, 1.9, -1.0);
-    layer("age-cool", "age-cool", 0.009, 4, 21, cool, 1.9, -1.12);
-    layer("age-mottle", "age-mottle", 0.021, 4, 13, warm, 1.25, -0.6);
+  if ((age.paper ?? 0) > 0) {
+    defs.push(paperTile("paper-under", PAPER_B, age.under_tile ?? 139, 1.0, 90, 31));
+    defs.push(paperTile("paper-over", PAPER_A, age.tile ?? 203, 1.46, 0, 0));
+    body.push(
+      svg.rect(0, 0, page.width, page.height,
+        { class_: "paper-under", fill: "url(#paper-under)" }),
+      svg.rect(0, 0, page.width, page.height,
+        { class_: "paper-over", fill: "url(#paper-over)" }));
   }
-  if ((age.foxing ?? 0) > 0) {
-    // Rust spots. Sparse on purpose: the threshold is what makes them specks
-    // rather than a texture.
-    layer("age-fox", "age-fox", 0.11, 2, 41, age.fox_colour ?? "#5a3312", 5.2, -3.9);
-  }
-  if ((age.tooth ?? 0) > 0) {
-    layer("age-tooth", "age-tooth", 0.85, 3, 29, age.tooth_colour ?? "#4a3722", 1.1, -0.5);
-  }
-  body.push(...aged);
 
   const inset = pg.frame_inset;
   const gap = inset + pg.frame_inner_gap;
@@ -365,6 +349,8 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
   // Wear at the edges, above everything: a sheet is handled by its border, and
   // the darkening there falls on whatever happens to be printed under it.
   if ((age.wear ?? 0) > 0) {
+    const warm = age.colour ?? "#6b4a22";
+    const seed = age.seed ?? 7;
     defs.push(
       `<radialGradient id="age-wear-fill" cx="50%" cy="50%" ` +
       `r="${svg.fmt(age.wear_reach ?? 70)}%">` +

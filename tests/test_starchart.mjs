@@ -251,28 +251,19 @@ describe("document", () => {
     assert.ok(/<circle[^>]*class="panel-sun"/.test(ruled), "no plain filled sun");
   });
 
-  it("ages the paper without a blend mode", () => {
-    // mix-blend-mode is widely ignored by SVG tooling and degrades silently to
-    // flat grey, which is exactly what the first attempt did. Age is composited
-    // with ordinary alpha instead: turbulence mapped into the alpha of a fixed
-    // brown, at several scales.
-    assert.ok(!markup.includes("mix-blend-mode"), "age relies on a blend mode");
-    for (const id of ["age-blotch", "age-mottle", "age-tooth", "age-wear"]) {
-      assert.ok(markup.includes(`id="${id}"`), `${id} missing`);
-    }
-    for (const id of ["age-cool", "age-fox"]) {
-      assert.ok(markup.includes(`id="${id}"`), `${id} missing`);
-    }
-    // Several scales, and more than one hue -- one layer of anything reads as
-    // noise however strong it is.
-    const frequencies = [...markup.matchAll(/baseFrequency="([\d.]+)"/g)].map((m) => +m[1]);
-    assert.ok(Math.max(...frequencies) / Math.min(...frequencies) > 100,
-      "every age layer is at the same scale");
-    const hues = new Set([...markup.matchAll(/values="0 0 0 0 ([\d.]+)/g)].map((m) => m[1]));
-    assert.ok(hues.size >= 3, "the age layers are all one colour");
-    // The wear layer has to be painted past the sheet, or the displacement
-    // samples nothing and leaves a hard band along the edge.
-    assert.ok(/<rect x="-\d/.test(markup), "the wear layer does not bleed off the sheet");
+  it("papers the sheet with a scan rather than a simulation", () => {
+    // Simulating age was a decent imitation and read as one. Two scans,
+    // mirror-tiled at sizes that share no factor, so nothing lines up.
+    assert.ok(markup.includes('id="paper-over"'), "no paper tiling");
+    assert.ok(markup.includes('id="paper-under"'), "no second scan");
+    assert.ok(markup.includes("data:image/jpeg;base64,"), "the scans are not embedded");
+    // Mirrored quadrants are what makes any tile seamless without editing it.
+    const tile = markup.slice(markup.indexOf('id="paper-over"'));
+    assert.ok(tile.includes("scale(-1,1)") && tile.includes("scale(1,-1)") &&
+              tile.includes("scale(-1,-1)"), "the tile is not mirrored");
+    const { age } = defaultTheme.page;
+    assert.ok(Math.abs(age.tile / age.under_tile - Math.round(age.tile / age.under_tile)) > 0.1,
+      "the two tile sizes share a factor, so their seams will line up");
   });
 
   it("emits no CDATA", () => {

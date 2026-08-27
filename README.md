@@ -201,29 +201,29 @@ line ruled. Palettes can be saved from whatever colours are on screen; a palette
 is every colour-valued leaf in a theme, gathered automatically rather than
 listed by hand, so a colour added later is captured without anyone remembering.
 
-### Ageing the paper
+### The paper
 
-A flat wash of noise reads as noise, however strong it is. What reads as a
-handled sheet is unevenness at several scales *and in more than one hue*: broad
-blotches where it was damp, a cooler mottle where the rag has foxed, rust spots,
-tooth in the fibre, and edges darker than the middle from being picked up by
-them. Six layers, all generated in the file. Damp brown and foxed grey-green are
-different colours, not one colour at two strengths, and using one for both is
-most of what makes generated ageing look generated.
+Two public-domain paper scans, embedded and mirror-tiled. This was simulated for
+a while — turbulence at several scales mapped into the alpha of two browns — and
+it was a decent imitation that still read as one. Ageing is the accumulated
+history of a physical object, and the honest way to have it is to photograph
+paper that already has it.
 
-Each is a turbulence whose luminance is mapped into the **alpha** of a fixed
-brown, rather than drawn as grey and blended. That distinction matters: the
-blend-mode version needs `mix-blend-mode`, which a good deal of SVG tooling
-ignores and silently degrades to flat grey — which is what the first attempt
-did. Alpha compositing works anywhere.
+Mirroring makes any tile seamless without touching a pixel, at the cost of a
+symmetry that is itself readable, so a second scan sits underneath at a
+different size and turned ninety degrees. The two tile sizes share no factor, so
+their seams never line up anywhere on the sheet.
 
-The staining sits behind the line work. The edge wear sits over everything,
-because an edge is darker whatever happens to be printed on it, and its boundary
-is a gradient pushed around by turbulence so it tears rather than fading in a
-clean ellipse. Displacing a gradient is safe in a way displacing line work is
-not: there is no edge to smear. It has to be painted well past the sheet, or the
-displacement samples transparency from outside and leaves a hard band along the
-edge it sampled from.
+Both scans are cropped hard, because a scan's own edges are where its artefacts
+live. The first crop kept a band of faint ribbing down one side of one of them,
+and mirroring turned that into a ladder of marks running straight down the
+sheet, once per tile. The second scan is deliberately featureless for the same
+reason: an under-layer with any incident in it announces the tiling.
+
+Edge darkening still sits on top, with a torn boundary — a gradient pushed
+around by turbulence, which is safe on a gradient in a way it would not be on
+line work, since there is no edge to smear. It has to be painted past the sheet,
+or the displacement samples transparency from outside and leaves a hard band.
 
 ### Drawing by hand
 

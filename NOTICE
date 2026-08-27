@@ -22,6 +22,17 @@ Files are used unmodified, as published upstream:
 All coordinates are epoch J2000.
 
 --------------------------------------------------------------------------
+Paper textures  --  web/starchart/textures.js
+--------------------------------------------------------------------------
+Two public-domain paper scans from Wikimedia Commons, embedded as data
+URIs after trimming, downscaling and re-compression:
+
+  Old paper6.jpg        https://commons.wikimedia.org/wiki/File:Old_paper6.jpg
+  Old Paper texture.jpg https://commons.wikimedia.org/wiki/File:Old_Paper_texture.jpg
+
+Both are marked public domain on Commons.
+
+--------------------------------------------------------------------------
 Not used
 --------------------------------------------------------------------------
 This project does not incorporate any code from modhtom/StarMap, which
