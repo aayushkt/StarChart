@@ -52,6 +52,7 @@ const round = (v, p) => Number(v.toFixed(p));
 function restyle() {
   state.svg.querySelector("style").textContent = stylesheet(state.theme, state.ui);
   applyLayerVisibility();
+  saveSession();
 }
 
 function applyLayerVisibility() {
@@ -92,6 +93,7 @@ function rerender() {
   drawHandles();
   updateDims();
   paint();
+  saveSession();
 }
 
 /* Control paths carry their own destination. `ui.` is editor-only state,
@@ -872,6 +874,9 @@ const remember = (key, value) => {
 const recall = (key) => {
   try { return localStorage.getItem(key); } catch { return null; }
 };
+const forget = (key) => {
+  try { localStorage.removeItem(key); } catch { /* not fatal */ }
+};
 
 function loadCalibration() {
   const saved = Number(recall("starchart.dpi"));
@@ -1356,6 +1361,122 @@ function initViewport() {
   window.addEventListener("resize", () => { if (state.fitted) fit(); });
 }
 
+
+/* ---------- the session, remembered ----------
+ *
+ * Everything the editor can change lives in four places: `config` (geometry,
+ * and every position anything has been dragged to), `theme` (colour and type),
+ * `ui` (the editor-only sliders), and `panelsOff`. All four are plain data, so
+ * the whole session is one JSON blob.
+ *
+ * It is written back on every change and read at startup, so a reload does not
+ * cost you an afternoon of arranging diagrams. It is also exportable to a file,
+ * because localStorage is per-browser and gets cleared -- and a layout worth
+ * half an hour is worth keeping somewhere you choose.
+ */
+
+const SESSION_KEY = "starchart.session";
+const SESSION_VERSION = 1;
+
+function snapshot() {
+  return {
+    v: SESSION_VERSION,
+    config: state.config,
+    theme: state.theme,
+    ui: { ...state.ui, hidden: [...state.ui.hidden] },
+    panelsOff: [...state.panelsOff],
+  };
+}
+
+/* Overlaid rather than assigned, so a saved session from before a setting
+ * existed still opens: anything it does not mention keeps today's default.
+ * Arrays are replaced whole -- merging an order or a palette element by element
+ * would give a result that was never anyone's setting. */
+function overlay(base, saved) {
+  if (!saved || typeof saved !== "object" || Array.isArray(saved)) {
+    return saved === undefined ? base : saved;
+  }
+  const out = Array.isArray(base) ? {} : { ...base };
+  for (const [k, v] of Object.entries(saved)) {
+    out[k] = v && typeof v === "object" && !Array.isArray(v)
+      ? overlay(base?.[k] ?? {}, v) : v;
+  }
+  return out;
+}
+
+let saveTimer = null;
+function saveSession() {
+  // Debounced: dragging a colour slider fires this on every pixel.
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { remember(SESSION_KEY, JSON.stringify(snapshot())); } catch { /* full */ }
+  }, 250);
+}
+
+/** Drop the stored session, and the save that rerender() has already queued.
+ *  Without cancelling the timer the reset would be overwritten 250 ms later by
+ *  a snapshot taken before it. */
+function forgetSession() {
+  clearTimeout(saveTimer);
+  forget(SESSION_KEY);
+}
+
+function applySession(saved) {
+  if (!saved || saved.v !== SESSION_VERSION) return false;
+  state.config = overlay(state.baseConfig, saved.config);
+  state.theme = overlay(state.base, saved.theme);
+  if (saved.ui) {
+    state.ui = { ...state.ui, ...saved.ui, hidden: new Set(saved.ui.hidden ?? []) };
+  }
+  state.panelsOff = new Set(saved.panelsOff ?? []);
+  return true;
+}
+
+function loadSession() {
+  const raw = recall(SESSION_KEY);
+  if (!raw) return;
+  try {
+    if (!applySession(JSON.parse(raw))) forgetSession();
+  } catch {
+    // A blob we cannot read is worse than none: it would fail the same way on
+    // every load. Drop it and start from the defaults.
+    forgetSession();
+  }
+}
+
+function exportSession() {
+  const blob = new Blob([JSON.stringify(snapshot(), null, 2)],
+                        { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "starchart-settings.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importSession(file) {
+  const note = document.getElementById("import");
+  try {
+    const saved = JSON.parse(await file.text());
+    if (!applySession(saved)) throw new Error("not a settings file for this version");
+    buildControls();
+    rerender();
+    restyle();
+    saveSession();
+    flash(note, "Loaded");
+  } catch (err) {
+    flash(note, "Not a settings file");
+  }
+}
+
+/** Say something on the button itself, then put its label back. */
+function flash(button, message) {
+  const was = button.textContent;
+  button.textContent = message;
+  setTimeout(() => { button.textContent = was; }, 1600);
+}
+
 /* ---------- download ---------- */
 
 function download() {
@@ -1404,8 +1525,13 @@ async function boot() {
     return;
   }
 
-  state.config = loaded.config;
-  state.theme = loaded.theme;
+  /* Cloned, not aliased. loadChart hands back the config and theme modules
+   * themselves, so editing a colour used to write straight into the imported
+   * portolanTheme -- and switching back to the Portolan sheet, which clones
+   * that same object, then handed you your own edits back instead of the sheet
+   * as shipped. */
+  state.config = structuredClone(loaded.config);
+  state.theme = structuredClone(loaded.theme);
   state.base = structuredClone(loaded.theme);
   state.data = loaded.data;
   state.observer = loaded.observer;
@@ -1418,6 +1544,9 @@ async function boot() {
   if (state.observer) state.ui.minutes = state.observer.minutes;
 
   loadCalibration();
+  // After baseConfig and base are set, so a saved session can be overlaid onto
+  // today's defaults rather than replacing them.
+  loadSession();
   rerender();
   updateDims();
 
@@ -1427,6 +1556,15 @@ async function boot() {
 }
 
 document.getElementById("download").addEventListener("click", download);
+document.getElementById("export").addEventListener("click", exportSession);
+document.getElementById("import").addEventListener("click", () => {
+  document.getElementById("import-file").click();
+});
+document.getElementById("import-file").addEventListener("change", (event) => {
+  const [file] = event.target.files;
+  if (file) importSession(file);
+  event.target.value = "";      // so the same file can be picked twice
+});
 document.getElementById("reset-layout")?.addEventListener("click", () => {
   // Both kinds of layout change: the numbers and anything dragged.
   state.config = structuredClone(state.baseConfig);
@@ -1445,5 +1583,8 @@ document.getElementById("reset").addEventListener("click", () => {
   };
   resetTheme();
   rerender();
+  // Reset means reset: leaving the old session in storage would bring it all
+  // back on the next reload.
+  forgetSession();
 });
 boot();

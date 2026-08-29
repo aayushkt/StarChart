@@ -88,6 +88,25 @@ with them. Now any manual change freezes whatever is still following the
 computed arrangement. Overlap is allowed. **Reset layout** restores both kinds
 of layout change — dragged positions and the numbers behind them.
 
+### Keeping what you arranged
+
+Nothing needs saving. Everything the editor can change lives in four places —
+`config` (geometry, and every position anything has been dragged to), `theme`
+(colour and type), the editor-only sliders, and which diagrams are switched off
+— and all four are plain data, so the whole session is one JSON blob written
+back to `localStorage` on every change and read at startup. Reload and your
+layout is where you left it.
+
+It is overlaid onto today's defaults rather than replacing them, so a session
+saved before a setting existed still opens: anything it does not mention keeps
+the current default. Arrays are replaced whole, because merging an order or a
+palette element by element gives a result that was never anyone's setting.
+
+**Save settings** writes the same blob to a file and **Load settings** reads one
+back — `localStorage` is per-browser and gets cleared, and an arrangement worth
+half an hour is worth keeping somewhere you choose. **Reset all** clears the
+stored session along with everything else.
+
 ### Printed size
 
 **Calibrate** opens a panel with a bar of a fixed pixel width. Hold a ruler

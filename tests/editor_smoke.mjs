@@ -8,83 +8,27 @@
  * meaning the test drives the shipped code path, not a copy of it.
  */
 
-import { JSDOM } from "jsdom";
 import fs from "node:fs";
 import path from "node:path";
+
+import { STAGE, WEB, boot } from "./harness.mjs";
 
 // Read from the same modules the page does, so adding a diagram or retuning
 // the rim band does not fail a hand-copied number here.
 import { defaultConfig } from "../web/starchart/index.js";
 import portolan from "../web/starchart/themes/portolan.js";
 
+// Snapshotted before the editor is booted, so an edit that writes into the
+// imported module rather than into the editor's own copy is visible here.
+const SHIPPED_PLATE = portolan.plate.fill;
+const SHIPPED_ORDER = defaultConfig.panels.order.join(",");
+
 const DIAGRAMS = defaultConfig.panels.order;
 // The plates, the title and the caption are draggable alongside the diagrams.
 const MOVABLE = DIAGRAMS.length + 3;
 
-const REPO = path.resolve(new URL("..", import.meta.url).pathname);
-const WEB = path.join(REPO, "web");
-
-const dom = new JSDOM(fs.readFileSync(path.join(WEB, "index.html"), "utf8"), {
-  url: "http://localhost/",
-  pretendToBeVisual: true,
-});
-const { window } = dom;
-
-// The real stylesheet, inlined. Without it getComputedStyle sees nothing, and a
-// panel that never hides because a class rule outranks [hidden] looks perfectly
-// fine to a test that only reads the `hidden` property.
-{
-  const style = window.document.createElement("style");
-  style.textContent = fs.readFileSync(path.join(WEB, "style.css"), "utf8");
-  window.document.head.appendChild(style);
-}
-
-// jsdom does no layout, so every box is 0x0 and the pan/zoom maths degenerates.
-const STAGE = { x: 320, y: 40, width: 900, height: 700 };
-window.Element.prototype.getBoundingClientRect = function () {
-  if (this.id === "stage-scroll") {
-    return { ...STAGE, left: STAGE.x, top: STAGE.y,
-             right: STAGE.x + STAGE.width, bottom: STAGE.y + STAGE.height };
-  }
-  return { x: 0, y: 0, width: 0, height: 0, left: 0, top: 0, right: 0, bottom: 0 };
-};
-window.Element.prototype.setPointerCapture ||= function () {};
-// jsdom has no PointerEvent; a MouseEvent carrying pointerId is close enough
-// for the drag handlers, which only read the id and the coordinates.
-if (typeof window.PointerEvent !== "function") {
-  window.PointerEvent = class extends window.MouseEvent {
-    constructor(type, init = {}) {
-      super(type, init);
-      this.pointerId = init.pointerId ?? 1;
-    }
-  };
-}
-window.Element.prototype.releasePointerCapture ||= function () {};
-
-// Publish the browser globals the module expects, then serve its data from disk.
-for (const key of ["window", "document", "Element", "Event", "WheelEvent",
-                   "PointerEvent", "MouseEvent", "Blob", "Node", "SVGElement",
-                   "localStorage", "KeyboardEvent"]) {
-  globalThis[key] = window[key];
-}
-globalThis.URL.createObjectURL ||= () => "blob:test";
-globalThis.URL.revokeObjectURL ||= () => {};
-globalThis.fetch = async (url) => {
-  const file = path.join(WEB, String(url).replace(/^\.\//, ""));
-  if (!fs.existsSync(file)) return { ok: false, status: 404 };
-  return { ok: true, status: 200, json: async () => JSON.parse(fs.readFileSync(file, "utf8")) };
-};
-
-const errors = [];
-window.addEventListener("error", (e) => errors.push(e.message));
-
-await import(path.join(WEB, "app.js"));
-// boot() is async; give the data load and first render a turn to finish.
-for (let i = 0; i < 50 && !window.document.querySelector("#chart-wrap svg"); i++) {
-  await new Promise((r) => setTimeout(r, 20));
-}
-
-const d = window.document;
+const { window, document: doc, errors } = await boot();
+const d = doc;
 let failed = false;
 const fail = (m) => { console.log("FAIL:", m); failed = true; };
 const ok = (m) => console.log("  ok  ", m);
@@ -255,6 +199,14 @@ plate.dispatchEvent(new window.Event("input"));
 styleText().includes(".plate-bg{fill:#ff0000}")
   ? ok("colour change rewrites the stylesheet") : fail("colour change did not apply");
 styleText() !== before ? ok("stylesheet mutated in place") : fail("stylesheet unchanged");
+// ...and only the editor's copy. loadChart hands back the theme and config
+// modules themselves; holding them directly meant a colour edit rewrote the
+// shipped sheet, so coming back to it returned your own edits.
+portolan.plate.fill === SHIPPED_PLATE
+  ? ok("editing a colour leaves the shipped sheet alone")
+  : fail(`the theme module was written to: plate.fill is now ${portolan.plate.fill}`);
+defaultConfig.panels.order.join(",") === SHIPPED_ORDER
+  ? ok("and the shipped config too") : fail("the config module was written to");
 
 // --- sheets and palettes are two different things, which is the whole point
 const chip = (label) => [...d.querySelectorAll(".preset")]
@@ -271,6 +223,25 @@ handPaths() === handBefore
 
 chip("Cavallini").click();
 handPaths() === 0 ? ok("the ruled sheet turns the hand off") : fail("hand survived the sheet");
+
+// A sheet is what was shipped, not what you last did to it. The editor used to
+// hold the imported theme module itself, so editing a colour wrote into the
+// sheet, and coming back to it returned your own edits.
+{
+  chip("Portolan").click();
+  const pristine = styleText().match(/\.page-bg\{fill:(#[0-9a-f]+)\}/i)?.[1];
+  const swatch = [...d.querySelectorAll(".swatch")]
+    .find((n) => n.dataset.path === "page.background");
+  swatch.value = "#abcdef";
+  swatch.dispatchEvent(new window.Event("input"));
+  styleText().includes("#abcdef") ? ok("the paper colour takes") : fail("colour did not apply");
+  chip("Cavallini").click();
+  chip("Portolan").click();
+  const again = styleText().match(/\.page-bg\{fill:(#[0-9a-f]+)\}/i)?.[1];
+  again === pristine
+    ? ok("going back to a sheet gives the sheet, not your last edit to it")
+    : fail(`the sheet came back as ${again}, edited from ${pristine}`);
+}
 chip("Portolan").click();
 handPaths() > 0 ? ok("the drawn sheet turns it back on") : fail("hand did not return");
 
@@ -853,6 +824,86 @@ d.querySelector("#reset-layout").click();
   Number(localStorage.getItem("starchart.dpi")) > 96
     ? ok("the measurement is remembered") : fail("calibration not stored");
   localStorage.removeItem("starchart.dpi");
+}
+
+// --- the session survives, which is the point of arranging anything
+{
+  /* Polled rather than slept through. The save is debounced by 250 ms and the
+   * clock only starts once the re-render it follows has finished, so a fixed
+   * wait is a race that passes on a fast machine and fails on a loaded one. */
+  const settle = () => new Promise((r) => setTimeout(r, 320));
+  const until = async (predicate, what) => {
+    for (let i = 0; i < 60; i++) {
+      if (predicate()) return true;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    fail(`timed out waiting for ${what}`);
+    return false;
+  };
+
+  shift("keydown");
+  const startX = panelX();
+  const at = insideOf("panel:solar-eclipse");
+  drag(handleFor("panel:solar-eclipse"), at, nudge(at, 37, 21), 91);
+  shift("keyup");
+  const movedX = panelX();
+  // Earlier drags left the sidebar showing one selection, where the global
+  // colour pickers are not on screen.
+  d.querySelector(".btn.back")?.click();
+  const plateColour = d.querySelector('[data-path="plate.fill"]');
+  if (!plateColour) fail("no plate colour picker to change");
+  plateColour.value = "#ff00aa";
+  plateColour.dispatchEvent(new window.Event("input"));
+  await settle();
+
+  await until(() => localStorage.getItem("starchart.session"), "the first save");
+  const raw = localStorage.getItem("starchart.session");
+  raw ? ok("the session is written to storage") : fail("nothing saved");
+  const saved = raw && JSON.parse(raw);
+  saved?.config?.placement?.panels?.["solar-eclipse"]
+    ? ok("a dragged diagram is in it") : fail("the drag was not saved");
+  saved?.theme?.plate?.fill === "#ff00aa"
+    ? ok("so is a changed colour") : fail("the colour was not saved");
+
+  d.getElementById("reset").click();
+  await settle();
+  localStorage.getItem("starchart.session") === null
+    ? ok("Reset all clears it, and the queued save with it")
+    : fail("the session came back after a reset");
+  Math.abs(panelX() - startX) < 0.01
+    ? ok("the diagram went home") : fail(`reset left it at ${panelX()}`);
+
+  // Loading the exported file is the same code path a reload takes, so this
+  // exercises the restore without needing a second page.
+  const input = d.getElementById("import-file");
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [{ text: async () => raw }],
+  });
+  input.dispatchEvent(new window.Event("change"));
+  await until(() => Math.abs(panelX() - movedX) < 0.01, "the diagram to return");
+
+  Math.abs(panelX() - movedX) < 0.01
+    ? ok("loading it puts the diagram back where it was")
+    : fail(`restored to ${panelX()}, wanted ${movedX}`);
+  styleText().includes("#ff00aa")
+    ? ok("and brings the colour back") : fail("the colour did not come back");
+  await until(() => localStorage.getItem("starchart.session"), "the re-save");
+  localStorage.getItem("starchart.session")
+    ? ok("a loaded session is saved in turn") : fail("loading did not re-save");
+
+  // A file that is not one of ours must not wipe the working session.
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [{ text: async () => '{"hello":"world"}' }],
+  });
+  input.dispatchEvent(new window.Event("change"));
+  await settle();
+  Math.abs(panelX() - movedX) < 0.01
+    ? ok("a file that is not a session is refused")
+    : fail("a foreign file was applied");
+
+  localStorage.removeItem("starchart.session");
 }
 
 d.querySelectorAll("[data-zoom]").length === 0

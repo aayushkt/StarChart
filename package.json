@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A vintage celestial chart generated from catalogue data",
   "scripts": {
-    "test": "node --test tests/test_starchart.mjs && node tests/editor_smoke.mjs",
+    "test": "node --test tests/test_starchart.mjs && node tests/editor_smoke.mjs && node tests/session_reload.mjs",
     "dev": "node scripts/dev.mjs",
     "build-data": "node scripts/build-data.mjs",
     "rebaseline": "node scripts/rebaseline.mjs"
