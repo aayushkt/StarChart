@@ -10,6 +10,7 @@
  */
 
 import { BUCKET_COUNT } from "./labels.js";
+import { TICK_TRACKING } from "./panels.js";
 import { fmt } from "./svg.js";
 
 const n = (v) => fmt(Number(v), 6);
@@ -50,7 +51,8 @@ function panelRules(pn, st, ty) {
     // Notation, set as something written rather than something printed.
     [".panel-eq", `fill:${pn.ink};font-family:${ty.body};font-style:italic`],
     [".panel-tick", `fill:${pn.ink};font-family:${ty.body};` +
-      `font-size:${n(pn.tick_size)}px;letter-spacing:0.3px;text-anchor:middle`],
+      `font-size:${n(pn.tick_size)}px;letter-spacing:${n(TICK_TRACKING)}px;` +
+      `text-anchor:middle`],
     // Both fill and stroke: a shape is a flat fill when ruled and a set of
     // strokes when drawn, and it should be the same colour either way.
     [".panel-sun", `fill:${pn.sun};stroke:${pn.sun}`],

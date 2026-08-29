@@ -116,9 +116,17 @@ clearance above and below and their rims touching — 24 × 36 inches, a radius 
 and offset by hand; sizing the plates by their grip does that for you, since
 otherwise the radius is derived and the drag would do nothing.
 
-The diagrams start switched off, because with the plates filling the sheet they
-land on top of them. **Layout → Diagrams → Show the diagrams** brings them back,
-to be dragged wherever you want.
+The diagrams start switched on. With the plates filling the sheet they land on
+top of them and the plates paint over them, so what shows is whatever reaches
+past the discs — drag them where you want, or turn the lot off under
+**Layout → Diagrams**.
+
+None of them carries a heading. Labelling inside a diagram earns its place —
+which body is which, what the scale bar measures — but a title over the top of
+it does not, since the drawing already says what it is. The one exception is the
+seasons wheel, which names its four stations by date, `21-03` and the rest;
+without them the four globes on the ellipse are just four globes on an
+ellipse.
 
 Each is drawn at its own size and they flow across the sheet, wrapping — the
 eclipses long and low because they are a row of bodies on a line, the moon wheel

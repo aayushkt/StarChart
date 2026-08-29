@@ -65,10 +65,14 @@ export default {
     // The ornamental diagrams the original prints around its plates. Each is
     // generated from real figures rather than traced, so the planet sizes and
     // distances are true and the Moon shows the phase on the configured date.
-    // Off by default: with the plates filling the sheet the diagrams land on
-    // top of them. Switch them on in Layout > Diagrams and drag them where you
-    // want -- overlapping is allowed and expected.
-    enabled: false,
+    // They carry no words at all -- notation where a diagram needs it, and the
+    // four dates on the seasons wheel, which is the only place a label says
+    // something the drawing cannot.
+    //
+    // On by default. With the plates filling the sheet they land on top of
+    // them, and the plates paint over them, so what shows is whatever reaches
+    // past the discs. Drag them where you want; overlapping is expected.
+    enabled: true,
     // Drawn at their own sizes and flowed across the sheet, wrapping.
     order: [
       "planet-sizes", "magnitude-key", "solar-system",

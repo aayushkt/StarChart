@@ -218,12 +218,18 @@ const sliders = d.querySelectorAll('input[type="range"]');
 swatches.length >= 20 ? ok(`${swatches.length} colour pickers`) : fail(`swatches=${swatches.length}`);
 sliders.length >= 15 ? ok(`${sliders.length} sliders`) : fail(`sliders=${sliders.length}`);
 
-// --- the diagrams start switched off, and can be switched back on
+// --- the diagrams start switched on, and can be switched off and back
 const diagramsToggle = [...d.querySelectorAll(".check")]
   .find((c) => c.textContent.trim() === "Show the diagrams")?.querySelector("input");
 diagramsToggle ? ok("the diagrams have a master switch") : fail("no diagrams switch");
-chart().querySelectorAll('g[id^="panel-"]:not([id^="panel-clip"])').length === 0
-  ? ok("they start off, since the plates fill the sheet") : fail("diagrams drawn by default");
+const panelCount = () =>
+  chart().querySelectorAll('g[id^="panel-"]:not([id^="panel-clip"])').length;
+panelCount() > 0 ? ok("they start on") : fail("no diagrams drawn by default");
+{
+  diagramsToggle.checked = false;
+  diagramsToggle.dispatchEvent(new window.Event("change"));
+  panelCount() === 0 ? ok("switching them off clears them") : fail("diagrams stuck on");
+}
 // Switching them on must not move the canvas. The stage is overflow:hidden
 // with the chart positioned by a transform, so a stray scrollTop -- which is
 // what scroll anchoring produces when content changes -- leaves the canvas

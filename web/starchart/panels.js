@@ -18,6 +18,14 @@ import { circle, fmt, line, path, polylineD, text } from "./svg.js";
 
 const RAD = Math.PI / 180;
 
+/** Letter-spacing on a diagram's small caps, in the same units as the size.
+ *
+ * Exported because style.js emits it and this file measures against it. Kept in
+ * one place after a measured label overlapped its neighbour: the measurement
+ * left the tracking out, so two names that visibly collided were calculated to
+ * clear each other by a millimetre. */
+export const TICK_TRACKING = 0.3;
+
 /** A diagram's own styling, over the shared defaults.
  *
  * Every panel reads its style through this, so overriding one value for one
@@ -164,7 +172,7 @@ const caption = (x, y, s, cls = "panel-caption") =>
 /* ------------------------------------------------- comparative sizes */
 
 function planetSizes(box, theme, ctx) {
-  const a = inner(box, theme);
+  const a = inner(box, theme, false);
   // Everything is to one true scale, which is the whole point: at a size where
   // Jupiter is a visible disc, the Sun is ten times wider than the panel. So the
   // Sun appears as a limb sweeping through the left of the box, exactly as the
@@ -188,6 +196,7 @@ function planetSizes(box, theme, ctx) {
 
   // Planets in a row, true to each other and to that same Sun.
   let x = a.x + a.w * 0.24;
+  let lastRight = -Infinity;
   for (const planet of PLANETS) {
     const r = Math.max(0.28, planet.km * scale);
     x += r;
@@ -195,9 +204,16 @@ function planetSizes(box, theme, ctx) {
     // stay as marks.
     parts.push(r > 1.6 ? P.disc(x, a.cy, r, "panel-planet", { angle: -50, density: 1.4 })
                        : circle(x, a.cy, r, { class_: "panel-planet" }));
-    // Only the giants have room for a name beside them.
+    /* Only the giants have room for a name beside them, and even then not
+     * always: Uranus and Neptune are nearly the same size and sit next to each
+     * other, so their names ran together into one word. Measured rather than
+     * guessed -- a name that would not clear the last one drops to a second
+     * line instead. */
     if (r > 2.2) {
-      parts.push(caption(x, a.cy + r + 3.4, planet.name, "panel-tick"));
+      const half = textWidth(planet.name, theme.panels.tick_size, TICK_TRACKING) / 2;
+      const low = x - half < lastRight + 2;
+      parts.push(caption(x, a.cy + r + (low ? 7.6 : 3.4), planet.name, "panel-tick"));
+      if (!low) lastRight = x + half;
     }
     x += r + gap;
   }
@@ -205,13 +221,13 @@ function planetSizes(box, theme, ctx) {
     `SUN ${(SUN_KM * 2).toLocaleString("en")} KM ACROSS · ` +
     `EARTH ${(PLANETS[2].km * 2).toLocaleString("en")} KM`, "panel-note"));
 
-  return frame(box, "COMPARATIVE SIZE OF THE SUN AND PLANETS", theme, parts.join(""));
+  return frame(box, "", theme, parts.join(""));
 }
 
 /* ------------------------------------------------------ magnitude key */
 
 function magnitudeKey(box, theme, ctx) {
-  const a = inner(box, theme);
+  const a = inner(box, theme, false);
   const radii = theme.stars.radii;
   const parts = [];
 
@@ -240,13 +256,13 @@ function magnitudeKey(box, theme, ctx) {
   parts.push(text(a.cx + col, noteY + 7, "Altair",
     { class_: "star-label", text_anchor: "middle" }));
 
-  return frame(box, "EXPLANATION", theme, parts.join(""));
+  return frame(box, "", theme, parts.join(""));
 }
 
 /* ------------------------------------------------------- solar system */
 
 function solarSystem(box, theme, ctx) {
-  const a = inner(box, theme);
+  const a = inner(box, theme, false);
   const cy = a.cy;
   const maxR = Math.min(a.w * 0.46, a.h * 0.46);
   const scale = maxR / PLANETS[PLANETS.length - 1].au;
@@ -281,7 +297,7 @@ function solarSystem(box, theme, ctx) {
   parts.push(caption(a.cx, barY - 2.6,
     `${Math.round(10 * AU_MILLION_MILES)} MILLION MILES`, "panel-tick"));
 
-  return frame(box, "THE SOLAR SYSTEM · ORBITS TO SCALE", theme, parts.join(""));
+  return frame(box, "", theme, parts.join(""));
 }
 
 /* ----------------------------------------------------------- eclipses */
@@ -299,7 +315,7 @@ function shadowCone(sunX, sunR, bodyX, bodyR, cy) {
 }
 
 function solarEclipse(box, theme, ctx) {
-  const a = inner(box, theme);
+  const a = inner(box, theme, false);
   const cy = a.cy;
   const sunR = a.h * 0.34;
   // Clear of the edge by its own radius: the half-Sun belongs to the size
@@ -333,11 +349,11 @@ function solarEclipse(box, theme, ctx) {
     caption(moonX, cy - moonR - 2.4, "MOON", "panel-tick"),
     caption(earthX, cy - earthR - 2.4, "EARTH", "panel-tick"),
   ];
-  return frame(box, "ECLIPSE OF THE SUN", theme, parts.join(""));
+  return frame(box, "", theme, parts.join(""));
 }
 
 function lunarEclipse(box, theme, ctx) {
-  const a = inner(box, theme);
+  const a = inner(box, theme, false);
   const cy = a.cy;
   const sunR = a.h * 0.34;
   const sunX = a.x + sunR + 1.5;
@@ -363,13 +379,13 @@ function lunarEclipse(box, theme, ctx) {
     caption(earthX, cy - earthR - 2.4, "EARTH", "panel-tick"),
     caption(moonX, cy + moonR + 4.6, "MOON", "panel-tick"),
   ];
-  return frame(box, "ECLIPSE OF THE MOON", theme, parts.join(""));
+  return frame(box, "", theme, parts.join(""));
 }
 
 /* -------------------------------------------------- earth's revolution */
 
 function earthRevolution(box, theme, ctx) {
-  const a = inner(box, theme);
+  const a = inner(box, theme, false);
   const rx = a.w * 0.40;
   const ry = a.h * 0.24;
   const cy = a.cy;
@@ -386,12 +402,12 @@ function earthRevolution(box, theme, ctx) {
 
   // The four stations, in the positions the original gives them.
   const stations = [
-    [-1, 0, "21 MARCH", "VERNAL EQUINOX"],
-    [0, -1, "21 JUNE", "SUMMER SOLSTICE"],
-    [1, 0, "23 SEPTEMBER", "AUTUMNAL EQUINOX"],
-    [0, 1, "21 DECEMBER", "WINTER SOLSTICE"],
+    [-1, 0, "21-03"],
+    [0, -1, "21-06"],
+    [1, 0, "23-09"],
+    [0, 1, "21-12"],
   ];
-  for (const [dx, dy, when, what] of stations) {
+  for (const [dx, dy, when] of stations) {
     const x = a.cx + dx * rx;
     const y = cy + dy * ry;
     parts.push(P.disc(x, y, earthR, "panel-earth", { angle: -48, density: 1.2 }));
@@ -400,18 +416,16 @@ function earthRevolution(box, theme, ctx) {
                       x + earthR * 0.4, y + earthR * 1.5, "panel-axis"));
     // Both lines sit above the globe at the bottom station; below it there is
     // no room before the panel edge.
-    const above = dy > 0 ? false : true;
-    const ty = above ? y - earthR - 7.2 : y + earthR + 4.4;
+    const ty = dy > 0 ? y + earthR + 5.2 : y - earthR - 3.4;
     parts.push(caption(x, ty, when, "panel-tick"));
-    parts.push(caption(x, ty + 4.0, what, "panel-note"));
   }
-  return frame(box, "REVOLUTION OF THE EARTH AROUND THE SUN", theme, parts.join(""));
+  return frame(box, "", theme, parts.join(""));
 }
 
 /* ------------------------------------------------ illumination of moon */
 
 function moonIllumination(box, theme, ctx) {
-  const a = inner(box, theme);
+  const a = inner(box, theme, false);
   const ring = Math.min(a.w * 0.34, a.h * 0.36);
   const moonR = Math.max(2.0, ring * 0.17);
   const parts = [];
@@ -453,7 +467,7 @@ function moonIllumination(box, theme, ctx) {
   parts.push(label(0, -ring - 3.4, "FIRST QR"));
   parts.push(label(0, ring + 5.6, "LAST QR"));
 
-  return frame(box, "ILLUMINATION OF THE MOON", theme, parts.join(""));
+  return frame(box, "", theme, parts.join(""));
 }
 
 /* ----------------------------------------------- physics, in the margins
@@ -1093,13 +1107,15 @@ const redshift = working([
  * every one of them the wrong shape.
  */
 export const PANEL_SIZES = {
-  "planet-sizes": { w: 210, h: 62 },
-  "magnitude-key": { w: 130, h: 62 },
-  "solar-system": { w: 130, h: 95 },
-  "solar-eclipse": { w: 165, h: 58 },
-  "lunar-eclipse": { w: 165, h: 58 },
-  "earth-revolution": { w: 185, h: 85 },
-  "moon-illumination": { w: 120, h: 100 },
+  // Ten millimetres shorter than they were, which is the band the heading used
+  // to take. The drawing inside each keeps exactly the room it was drawn for.
+  "planet-sizes": { w: 210, h: 52 },
+  "magnitude-key": { w: 130, h: 52 },
+  "solar-system": { w: 130, h: 85 },
+  "solar-eclipse": { w: 165, h: 48 },
+  "lunar-eclipse": { w: 165, h: 48 },
+  "earth-revolution": { w: 185, h: 75 },
+  "moon-illumination": { w: 120, h: 90 },
   "gravitation": { w: 150, h: 78 },
   "spacetime": { w: 145, h: 95 },
   "black-hole": { w: 150, h: 88 },
@@ -1172,6 +1188,12 @@ export function layoutPanels(names, area, gutter) {
 }
 
 export function drawPanels(names, area, theme, ctx) {
+  /* Restart the clip numbering. It is a module-level counter, so without this
+   * the same chart built twice carries different clip ids -- which breaks the
+   * one property everything else here leans on, that a re-render after moving
+   * a slider produces byte-identical output. It went unnoticed while the
+   * diagrams were off by default, because then nothing ever called frame(). */
+  clipSeq = 0;
   const gutter = ctx.config.panels?.gutter ?? 10;
   return layoutPanels(names, area, gutter).map(({ name, box: flowed }) => {
     const draw = PANELS[name];

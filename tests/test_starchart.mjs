@@ -235,6 +235,12 @@ describe("document", () => {
     });
     assert.equal(again.markup, markup);
 
+    // Ids included: the clip paths are numbered from a counter, and a counter
+    // that is not reset per build makes two identical charts differ.
+    const ids = (m) => [...m.matchAll(/id="(panel-clip-\d+)"/g)].map((x) => x[1]);
+    assert.deepEqual(ids(again.markup), ids(markup));
+    assert.ok(ids(markup).length > 0, "no clip paths to compare");
+
     const sketch = await import("../web/starchart/sketch.js");
     assert.equal(sketch.circle(10, 20, 30), sketch.circle(10, 20, 30));
     assert.notEqual(sketch.circle(10, 20, 30), sketch.circle(10, 20, 31));
@@ -273,12 +279,10 @@ describe("document", () => {
     assert.ok(!markup.includes("<![CDATA["));
   });
 
-  it("draws every diagram once, when they are switched on", () => {
-    // Off by default: with the plates filling the sheet there is no room under
-    // them. Ask for them explicitly.
+  it("draws every diagram once", () => {
     const { markup: withPanels } = buildChart({
-      config: { ...defaultConfig, panels: { ...defaultConfig.panels, enabled: true } },
-      theme: defaultTheme, data, observer: makeObserver(defaultConfig),
+      config: defaultConfig, theme: defaultTheme, data,
+      observer: makeObserver(defaultConfig),
     });
     const ids = [...withPanels.matchAll(/id="(panel-[a-z-]+)"/g)]
       .map((m) => m[1]).filter((id) => !id.startsWith("panel-clip"));
@@ -306,6 +310,23 @@ describe("document", () => {
     // Still over the stars themselves, which it has to cross to mean anything.
     assert.ok(at("layer-stars") < at("layer-horizon"),
       "the horizon went under the stars too");
+  });
+
+  it("gives the diagrams no headings", () => {
+    // Labelling inside a diagram earns its place -- which body is which, what
+    // the scale bar measures. A heading over the top of it does not; the
+    // drawing already says what it is.
+    const { markup } = buildChart({
+      config: defaultConfig, theme: defaultTheme, data,
+      observer: makeObserver(defaultConfig),
+    });
+    const panels = markup.slice(markup.indexOf('id="layer-panels"'));
+    assert.ok(!panels.includes('class="panel-title"'), "a diagram still has a heading");
+    // The seasons wheel names its four stations by date, in that form.
+    for (const day of ["21-03", "21-06", "23-09", "21-12"]) {
+      assert.ok(panels.includes(`>${day}<`), `no ${day} on the seasons wheel`);
+    }
+    assert.ok(!panels.includes("EQUINOX"), "the long season names came back");
   });
 
   it("fills the column between the title and the caption", () => {
