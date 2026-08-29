@@ -38,7 +38,14 @@ const server = http.createServer((req, res) => {
     res.end("not found");
     return;
   }
-  res.writeHead(200, { "content-type": TYPES[path.extname(file)] ?? "application/octet-stream" });
+  res.writeHead(200, {
+    "content-type": TYPES[path.extname(file)] ?? "application/octet-stream",
+    /* Never cache. This serves files straight off disk while they are being
+     * edited, and a browser holding a stale app.js presents as the change not
+     * having worked -- which sends you looking for a bug in the code you just
+     * wrote rather than in the copy that is actually running. */
+    "cache-control": "no-store, must-revalidate",
+  });
   fs.createReadStream(file).pipe(res);
 });
 
