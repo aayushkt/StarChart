@@ -19,7 +19,7 @@ const read = (n) =>
 const { markup } = buildChart({
   config: defaultConfig, theme: defaultTheme,
   data: { stars: read("stars"), starNames: read("starNames"),
-          constellations: read("constellations"), milkyWay: read("milkyWay") },
+          milkyWay: read("milkyWay") },
   observer: makeObserver(defaultConfig),
 });
 fs.writeFileSync(path.join(ROOT, "tests/golden/chart.svg"), markup);

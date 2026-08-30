@@ -6,7 +6,7 @@
  */
 
 import { drawBody, drawMoonTrack, states } from "./bodies.js";
-import { Placer, bucketFor, placeConstellationLabels, placeStarLabels } from "./labels.js";
+import { Placer, bucketFor, placeStarLabels } from "./labels.js";
 import { arcText } from "./lettering.js";
 import { caption, drawOverlay } from "./overlay.js";
 import { drawPanels } from "./panels.js";
@@ -37,7 +37,7 @@ const LAYER_ORDER = [
   // The horizon goes under the names, not over them. It is a broken red line
   // crossing the whole plate, and on top it cut through every label it met.
   "layer-horizon",
-  "layer-constellation-labels", "layer-star-labels", "layer-rim",
+  "layer-star-labels", "layer-rim",
   "layer-hemi-labels", "layer-sun", "layer-moon",
 ];
 
@@ -138,16 +138,6 @@ function drawLabels(hemi, config, theme, data) {
   const cfg = config.labels ?? {};
   const placer = new Placer();
 
-  // Constellations first: large, curved, and with far less freedom about where
-  // they can sit, so they claim space before the star names crowd them out.
-  const style = cfg.constellation_names ?? "both";
-  const constellations = data.constellations.map(([ra, dec, english, latin]) => {
-    const primary = style === "latin" ? latin : english;
-    const secondary = style === "both" && latin !== english ? latin : "";
-    return [ra, dec, primary, secondary];
-  });
-  const constGroup = placeConstellationLabels(hemi, constellations, theme, placer);
-
   const limit = cfg.star_mag_limit ?? 4;
   // Never name a star that is not drawn.
   const faintest = config.stars?.faintest_class ?? 5;
@@ -158,7 +148,7 @@ function drawLabels(hemi, config, theme, data) {
     const [x, y] = hemi.project(ra, dec);
     entries.push([x, y, name, mag]);
   });
-  return [constGroup, placeStarLabels(hemi, entries, theme, placer)];
+  return placeStarLabels(hemi, entries, theme, placer);
 }
 
 /** Build the whole document. Returns SVG markup. */
@@ -306,8 +296,7 @@ export function buildChart({ config, theme, data, observer = null, ui = {} }) {
     layers["layer-stars"].push(clip(stars));
 
     if (labelsOn) {
-      const [constGroup, starGroup] = drawLabels(hemi, config, theme, data);
-      layers["layer-constellation-labels"].push(clip(constGroup));
+      const starGroup = drawLabels(hemi, config, theme, data);
       layers["layer-star-labels"].push(clip(starGroup));
     }
 

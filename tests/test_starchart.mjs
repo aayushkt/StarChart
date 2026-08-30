@@ -34,7 +34,7 @@ const read = (n) =>
 
 const data = {
   stars: read("stars"), starNames: read("starNames"),
-  constellations: read("constellations"), milkyWay: read("milkyWay"),
+  milkyWay: read("milkyWay"),
 };
 const north = new Hemisphere({ pole: NORTH, cx: 0, cy: 0, radius: RADIUS, overlapDeg: 15 });
 
@@ -199,12 +199,11 @@ describe("document", () => {
     for (const [id] of LAYERS) assert.ok(markup.includes(`id="${id}"`), id);
   });
 
-  it("keeps constellation names the smallest type on the plate", () => {
-    // Everything drawn inside a plate sits at or above the constellation size.
+  it("keeps the star names the smallest type on the plate", () => {
+    // Everything drawn inside a plate sits at or above the star name size.
     const t = defaultTheme.type;
-    const floor = t.constel_size;
+    const floor = t.star_size;
     const onPlate = {
-      "constellation, Latin": floor * (t.constel_alt_scale ?? 0.78),
       "star names": t.star_size,
       "degree numbers": t.scale_size,
       "reference labels": defaultTheme.reference.label_size,
@@ -306,20 +305,17 @@ describe("document", () => {
     assert.ok(at("layer-star-labels") > 0, "no star label layer");
     assert.ok(at("layer-horizon") < at("layer-star-labels"),
       "the horizon paints over the star names");
-    assert.ok(at("layer-horizon") < at("layer-constellation-labels"),
-      "the horizon paints over the constellation names");
     // Still over the stars themselves, which it has to cross to mean anything.
     assert.ok(at("layer-stars") < at("layer-horizon"),
       "the horizon went under the stars too");
   });
 
   it("keeps the diagrams' styling inside the diagrams", () => {
-    /* The diagrams reuse .star and .constel-label for their own samples. Those
+    /* The diagrams reuse .star and .star-halo for their own samples. Those
      * rules were emitted unscoped and after the chart's own, so with equal
-     * weight they won on order: every star on both plates took the diagrams'
-     * sample colour, and every constellation name took the diagrams' ink -- a
-     * brown one shade off the plate it sits on. The Stars swatch appeared to do
-     * nothing at all. */
+     * weight they won on order and every star on both plates took the
+     * diagrams' sample colour. The Stars swatch appeared to do nothing at
+     * all. */
     const css = stylesheet(defaultTheme);
     const rule = (selector) => {
       const hit = css.split("\n").filter((l) => l.startsWith(`${selector}{`));
@@ -327,8 +323,6 @@ describe("document", () => {
     };
     assert.ok(rule(".star").includes(defaultTheme.stars.fill),
       "the plate's stars are painted by the diagrams");
-    assert.ok(rule(".constel-label").includes(defaultTheme.type.constel_fill),
-      "the constellation names are painted by the diagrams");
     assert.ok(rule(".star-halo").includes(defaultTheme.stars.halo_fill),
       "the halos are painted by the diagrams");
     // Every selector in a group has to carry the scope, not just the first --
@@ -371,6 +365,34 @@ describe("document", () => {
     }
   });
 
+  it("labels each colure once", () => {
+    /* A colure is one great circle drawn as two arms out of the pole, and both
+     * arms carried the name -- so each colure was named twice on each plate.
+     * Which arm keeps it is decided by where the arm ends up, not by its right
+     * ascension, so rotating the chart carries the labels with it. */
+    const { markup } = buildChart({
+      config: defaultConfig, theme: defaultTheme, data,
+      observer: makeObserver(defaultConfig),
+    });
+    const from = markup.indexOf('id="layer-colures"');
+    const body = markup.slice(from, markup.indexOf('id="layer-', from + 10));
+    const named = (name) =>
+      [...body.matchAll(new RegExp(`>${name}</text>`, "g"))].length;
+    assert.equal(named("EQUINOCTIAL COLURE"), 2, "not one per plate");
+    assert.equal(named("SOLSTITIAL COLURE"), 2, "not one per plate");
+    // Top and right respectively, which is the whole point of choosing by
+    // position: the equinoctial label sits above the pole, the solstitial to
+    // the right of it.
+    const pole = [...body.matchAll(/<line x1="([\d.]+)" y1="([\d.]+)"/g)][0];
+    const [px, py] = [Number(pole[1]), Number(pole[2])];
+    const at = (name) => {
+      const m = new RegExp(`<text x="([\\d.]+)" y="([\\d.]+)"[^>]*>${name}<`).exec(body);
+      return [Number(m[1]), Number(m[2])];
+    };
+    assert.ok(at("EQUINOCTIAL COLURE")[1] < py, "the equinoctial label is not above the pole");
+    assert.ok(at("SOLSTITIAL COLURE")[0] > px, "the solstitial label is not right of the pole");
+  });
+
   it("gives the diagrams no headings", () => {
     // Labelling inside a diagram earns its place -- which body is which, what
     // the scale bar measures. A heading over the top of it does not; the
@@ -386,30 +408,6 @@ describe("document", () => {
       assert.ok(panels.includes(`>${day}<`), `no ${day} on the seasons wheel`);
     }
     assert.ok(!panels.includes("EQUINOX"), "the long season names came back");
-  });
-
-  it("sets the constellation names at one angle across the plate", () => {
-    // Curved along each name's own declination circle is the faithful choice
-    // and what the original does, but that circle is a graticule ring that
-    // gets drawn, so every name sat on a line.
-    const angle = defaultTheme.labels.constellation_angle;
-    assert.equal(typeof angle, "number");
-    const { markup } = buildChart({
-      config: defaultConfig, theme: defaultTheme, data,
-      observer: makeObserver(defaultConfig),
-    });
-    const labels = [...markup.matchAll(
-      /<text[^>]*class="constel-label(?:-alt)?"[^>]*>/g)].map((m) => m[0]);
-    assert.ok(labels.length > 40, `only ${labels.length} constellation names placed`);
-    for (const label of labels) {
-      assert.match(label, new RegExp(`rotate\\(${angle} `),
-        `a name was not set at ${angle} degrees: ${label}`);
-    }
-    // Both lines of a two-line name have to survive: their tilted boxes always
-    // overlap as axis-aligned rectangles, and checking them against each other
-    // threw away every English-and-Latin pair.
-    const latin = labels.filter((l) => l.includes("constel-label-alt"));
-    assert.ok(latin.length > 20, `only ${latin.length} Latin lines placed`);
   });
 
   it("fills the column between the title and the caption", () => {

@@ -56,9 +56,6 @@ export default {
     // threshold slider then hides and reveals them without re-rendering, so this
     // is the ceiling rather than the setting.
     star_mag_limit: 5.0,
-    // "english", "latin", or "both" -- the original carries both, English over
-    // Latin in parentheses.
-    constellation_names: "both",
   },
 
   panels: {

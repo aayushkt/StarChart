@@ -116,10 +116,7 @@ const set = (path, v) => {
  * are dropped for want of room -- so changing one of these has to re-run it.
  * Rewriting the stylesheet would resize the type under labels that were laid
  * out for the old size. */
-const PLACEMENT_PATHS = new Set([
-  "type.star_size", "type.constel_size", "type.constel_alt_scale",
-  "labels.constellation_angle", "labels.constellation_tracking", "labels.star_gap",
-]);
+const PLACEMENT_PATHS = new Set(["type.star_size", "labels.star_gap"]);
 const isGeometry = (path) => path.startsWith("config.") || PLACEMENT_PATHS.has(path);
 
 /* ---------- panel layout ----------
@@ -181,8 +178,7 @@ const BUILT_IN_PALETTES = {
     "reference.stroke": "#5f8ea3", "reference.ecliptic_stroke": "#9fc39a",
     "reference.colure_stroke": "#4d7a8f", "reference.label_fill": "#a8c6d2",
     "type.title_fill": "#e6dcbd", "type.hemi_fill": "#e6dcbd",
-    "type.star_fill": "#dfe6d8", "type.constel_fill": "#eee4c8",
-    "type.constel_alt": "#9fbecb",
+    "type.star_fill": "#dfe6d8",
     "horizon.stroke": "#e8734a", "horizon.zenith_stroke": "#e8734a",
     "horizon.caption_fill": "#cfe0e6",
     "panels.ink": "#cfe0e6", "panels.title_fill": "#e6dcbd",
@@ -198,8 +194,7 @@ const BUILT_IN_PALETTES = {
     "reference.stroke": "#a9c8ea", "reference.ecliptic_stroke": "#dbe8f5",
     "reference.colure_stroke": "#7ba3d0", "reference.label_fill": "#dbe8f5",
     "type.title_fill": "#ffffff", "type.hemi_fill": "#ffffff",
-    "type.star_fill": "#dbe8f5", "type.constel_fill": "#ffffff",
-    "type.constel_alt": "#a9c8ea",
+    "type.star_fill": "#dbe8f5",
     "horizon.stroke": "#ffd166", "horizon.zenith_stroke": "#ffd166",
     "horizon.caption_fill": "#dbe8f5",
     "panels.ink": "#dbe8f5", "panels.title_fill": "#ffffff",
@@ -215,8 +210,7 @@ const BUILT_IN_PALETTES = {
     "reference.stroke": "#b09267", "reference.ecliptic_stroke": "#d8c08a",
     "reference.colure_stroke": "#8f7350", "reference.label_fill": "#e2d2b0",
     "type.title_fill": "#4a3520", "type.hemi_fill": "#4a3520",
-    "type.star_fill": "#f2e6c9", "type.constel_fill": "#f7edd6",
-    "type.constel_alt": "#cdb489",
+    "type.star_fill": "#f2e6c9",
     "horizon.stroke": "#a8412a", "horizon.zenith_stroke": "#a8412a",
     "horizon.caption_fill": "#4a3520",
     "panels.ink": "#4a3520", "panels.title_fill": "#4a3520",
@@ -239,7 +233,7 @@ const PANEL = [
                                  "layer-stars", "layer-star-halos"] },
       { title: "Reference lines", layers: ["layer-tropics", "layer-ecliptic",
                                            "layer-colures"] },
-      { title: "Names", layers: ["layer-constellation-labels", "layer-star-labels"] },
+      { title: "Names", layers: ["layer-star-labels"] },
       { title: "Sun & Moon", layers: ["layer-sun", "layer-moon", "layer-moon-track"] },
       { title: "Your sky", layers: ["layer-horizon"] },
       { title: "Page", layers: ["layer-frame", "layer-title", "layer-rim",
@@ -303,15 +297,10 @@ const PANEL = [
       ] },
       { title: "Names", sliders: [
         { path: "type.star_size", label: "Star name size", min: 1.5, max: 12, step: 0.1, unit: "mm" },
-        { path: "type.constel_size", label: "Constellation size", min: 1.5, max: 14, step: 0.1, unit: "mm" },
-        { path: "labels.constellation_angle", label: "Constellation tilt",
-          min: -90, max: 90, step: 1, unit: "°" },
       ], colors: [
         ["type.title_fill", "Title"],
         ["type.hemi_fill", "Hemisphere labels"],
         ["type.star_fill", "Star names"],
-        ["type.constel_fill", "Constellation names"],
-        ["type.constel_alt", "Constellation, Latin"],
         ["reference.label_fill", "Reference labels"],
       ] },
       { title: "Sun, Moon & horizon", colors: [
@@ -338,7 +327,6 @@ const PANEL = [
         { path: "ui.labelBucket", label: "Label stars brighter than", min: 0, max: 17, step: 1,
           unit: "", format: (b) => `mag ${bucketMagnitude(b).toFixed(1)}` },
         { path: "type.star_size", label: "Star name size", min: 1.2, max: 5, step: 0.1, unit: "mm" },
-        { path: "type.constel_size", label: "Constellation name size", min: 1.5, max: 7, step: 0.1, unit: "mm" },
         { path: "reference.label_size", label: "Reference label size", min: 1.2, max: 5, step: 0.1, unit: "mm" },
       ] },
       { title: "Lines", sliders: [
@@ -536,7 +524,6 @@ const PLATE_COLOURS = [
   ["reference.stroke", "Tropics"],
   ["reference.ecliptic_stroke", "Ecliptic"],
   ["type.star_fill", "Star names"],
-  ["type.constel_fill", "Constellation names"],
   ["horizon.stroke", "Horizon"],
 ];
 
@@ -563,7 +550,7 @@ function selectionPanel(sel) {
         { title: "Features", layers: [
           "layer-plate", "layer-milkyway", "layer-grid", "layer-stars", "layer-star-halos",
           "layer-tropics", "layer-ecliptic", "layer-colures",
-          "layer-constellation-labels", "layer-star-labels",
+          "layer-star-labels",
           "layer-rim", "layer-hemi-labels", "layer-sun", "layer-moon",
           "layer-moon-track", "layer-horizon",
         ] },

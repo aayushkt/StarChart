@@ -34,7 +34,6 @@ export const LAYERS = [
   ["layer-tropics", "Tropics & polar circles"],
   ["layer-ecliptic", "Ecliptic"],
   ["layer-colures", "Colures"],
-  ["layer-constellation-labels", "Constellation names"],
   ["layer-star-labels", "Star names"],
   ["layer-moon-track", "Moon's monthly path"],
   ["layer-sun", "Sun & its day circle"],
@@ -74,7 +73,7 @@ function panelRules(pn, st, ty) {
       `stroke:${pn.umbra}`],
     [".star", `fill:${pn.star_sample}`],
     [".star-halo", `fill:${pn.star_sample};fill-opacity:${n(st.halo_opacity)}`],
-    [".constel-label,.star-label", `fill:${pn.ink}`],
+    [".star-label", `fill:${pn.ink}`],
   ];
 }
 
@@ -123,10 +122,6 @@ export function stylesheet(theme, ui = {}) {
       `font-size:${n(rf.label_size)}px;font-style:italic}`,
     `.star-label{fill:${ty.star_fill};font-family:${ty.label};` +
       `font-size:${n(ty.star_size)}px;font-style:italic}`,
-    `.constel-label{fill:${ty.constel_fill};font-family:${ty.label};` +
-      `font-size:${n(ty.constel_size)}px}`,
-    `.constel-label-alt{fill:${ty.constel_alt};font-family:${ty.label};` +
-      `font-size:${n(ty.constel_size * (ty.constel_alt_scale ?? 0.78))}px;font-style:italic}`,
     `.sun-disc{fill:${bd.sun_fill}}`,
     `.sun-ray{fill:${bd.sun_ray};stroke:none}`,
     `.sun-limb{fill:none;stroke:${bd.sun_limb};stroke-width:0.35}`,
@@ -148,11 +143,9 @@ export function stylesheet(theme, ui = {}) {
    * Emitting both from one function is the only way they stay in step.
    *
    * The scope is not cosmetic. These were emitted bare, and since they come
-   * after the chart's own rules and carry equal weight, `.star` and
-   * `.constel-label` here were repainting every star and every constellation
-   * name on the plates in the diagrams' colours -- which made the Stars swatch
-   * appear to do nothing at all, and set the constellation names in a brown a
-   * shade off the plate they sit on. */
+   * after the chart's own rules and carry equal weight, `.star` here was
+   * repainting every star on both plates in the diagrams' sample colour --
+   * which made the Stars swatch appear to do nothing at all. */
   for (const [suffix, decls] of panelRules(pn, st, ty)) {
     rules.push(`${scope(".panel", suffix)}{${decls}}`);
   }

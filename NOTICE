@@ -16,8 +16,6 @@ Files are used unmodified, as published upstream:
                      General Catalogue of Variable Stars;
                      Gliese Catalogue of Nearby Stars
   mw.json            Milky Way Outline Catalog, Jose R. Vieira
-  constellations.json  IAU constellation data, with name positions and
-                     modifications by the d3-celestial maintainer
 
 All coordinates are epoch J2000.
 

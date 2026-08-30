@@ -100,17 +100,45 @@ export function drawColures(hemi, theme, labels) {
   const poleDec = hemi.pole === NORTH ? 90 : -90;
   const parts = [];
 
-  for (const [ra, name] of [[0, "EQUINOCTIAL COLURE"], [180, "EQUINOCTIAL COLURE"],
-                            [90, "SOLSTITIAL COLURE"], [270, "SOLSTITIAL COLURE"]]) {
-    const [x0, y0] = hemi.project(ra, poleDec);
-    const [x1, y1] = hemi.project(ra, inner);
-    parts.push(line(x0, y0, x1, y1, { class_: "colure" }));
-    if (labels) {
+  /* Each colure is one great circle drawn as two arms out of the pole, and both
+   * arms used to carry the name -- so each colure was labelled twice. One
+   * label each now, and which arm gets it is decided by where the arm ends up
+   * rather than by its right ascension: the equinoctial takes whichever arm
+   * runs highest up the sheet and the solstitial whichever runs furthest
+   * right, so rotating the chart moves the labels with it instead of sending
+   * them somewhere arbitrary. */
+  const wanted = {
+    "EQUINOCTIAL COLURE": ([, y]) => -y,
+    "SOLSTITIAL COLURE": ([x]) => x,
+  };
+  const best = new Map();
+
+  const arms = [[0, "EQUINOCTIAL COLURE"], [180, "EQUINOCTIAL COLURE"],
+                [90, "SOLSTITIAL COLURE"], [270, "SOLSTITIAL COLURE"]]
+    .map(([ra, name]) => {
+      const from = hemi.project(ra, poleDec);
+      const to = hemi.project(ra, inner);
+      parts.push(line(from[0], from[1], to[0], to[1], { class_: "colure" }));
+      return { name, from, to };
+    });
+
+  for (const arm of arms) {
+    const score = wanted[arm.name](arm.to);
+    if (!best.has(arm.name) || score > best.get(arm.name).score) {
+      best.set(arm.name, { arm, score });
+    }
+  }
+
+  if (labels) {
+    for (const { arm } of best.values()) {
+      const [x0, y0] = arm.from;
+      const [x1, y1] = arm.to;
       const f = ref.colure_label_frac;
       const lx = x0 + (x1 - x0) * f;
       const ly = y0 + (y1 - y0) * f;
       const angle = Math.atan2(y1 - y0, x1 - x0) * (180 / Math.PI);
-      parts.push(rotatedLabel(lx, ly, angle, name, "ref-label", ref.label_clearance * 0.8));
+      parts.push(rotatedLabel(lx, ly, angle, arm.name, "ref-label",
+                              ref.label_clearance * 0.8));
     }
   }
   return `<g>${parts.join("")}</g>`;

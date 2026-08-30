@@ -53,12 +53,6 @@ const payload = {
       .map((f, i) => [i, nameTable[String(f.id)]?.name])
       .filter(([, name]) => name)
   ),
-  constellations: read("constellations.json").features.map((f) => [
-    round(f.geometry.coordinates[0], 2),
-    round(f.geometry.coordinates[1], 2),
-    (f.properties.en || f.properties.name).replace(/ /g, " "),
-    f.properties.la || f.properties.name,
-  ]),
   milkyWay: ["ol1", "ol2", "ol3", "ol4", "ol5"].map((id) => {
     const feature = read("mw.json").features.find((f) => f.id === id);
     const rings = [];

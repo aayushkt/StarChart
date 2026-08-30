@@ -5,7 +5,7 @@
  * upstream d3-celestial data. See NOTICE for attribution.
  */
 
-const FILES = ["stars", "starNames", "constellations", "milkyWay"];
+const FILES = ["stars", "starNames", "milkyWay"];
 
 export async function loadCatalogues(base = ".") {
   const loaded = await Promise.all(
@@ -16,6 +16,6 @@ export async function loadCatalogues(base = ".") {
       })
     )
   );
-  const [stars, starNames, constellations, milkyWay] = loaded;
-  return { stars, starNames, constellations, milkyWay };
+  const [stars, starNames, milkyWay] = loaded;
+  return { stars, starNames, milkyWay };
 }

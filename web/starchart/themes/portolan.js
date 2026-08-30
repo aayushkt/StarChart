@@ -118,12 +118,6 @@ export default {
 
   labels: {
     star_gap: 2.85,
-    constellation_tracking: 0.825,
-    // Degrees clockwise from horizontal, applied to every constellation name
-    // on both plates. null sets them curved along their own declination
-    // circle instead, as the original does -- which is more faithful but lays
-    // each name directly along a graticule ring.
-    constellation_angle: -30.0,
     mag_bucket: 11,
   },
 
@@ -208,11 +202,7 @@ export default {
     hemi_tracking: 3.9,
     hemi_fill: "#4a3722",
     scale_size: 5.4,
-    constel_size: 5.1,
-    constel_alt_scale: 1.0,
-    constel_fill: "#efe3c4",
     star_size: 5.4,
     star_fill: "#e8dab6",
-    constel_alt: "#c8b78e",
   },
 };

@@ -102,10 +102,6 @@ export default {
   labels: {
     // Gap between a star and its name, in mm.
     star_gap: 2.85,
-    constellation_tracking: 0.825,
-    // Curved along each constellation's own declination circle, as the
-    // lithograph this sheet is after actually sets them.
-    constellation_angle: null,
     // Faintest bucket whose labels are shown; see labels.js.
     mag_bucket: 11,
   },
@@ -201,14 +197,7 @@ export default {
     hemi_fill: "#1d3a49",
     scale_size: 5.4,
     // The smallest type on the plate; nothing else goes below it.
-    constel_size: 5.1,
-    // The Latin name under the English one. Set to the same size rather than
-    // stepped down, so nothing on the plate is smaller than a constellation
-    // name -- the italic already tells the two lines apart.
-    constel_alt_scale: 1.0,
-    constel_fill: "#eee9d6",
     star_size: 5.4,
     star_fill: "#f0ead7",
-    constel_alt: "#cfe0e6",
   },
 };

@@ -88,21 +88,6 @@ with them. Now any manual change freezes whatever is still following the
 computed arrangement. Overlap is allowed. **Reset layout** restores both kinds
 of layout change — dragged positions and the numbers behind them.
 
-### Names
-
-Constellation names are set at one angle across the whole plate —
-`labels.constellation_angle`, with a slider under **Colours → Names**. Curved
-along each name's own declination circle is the more faithful choice and it is
-what the original does, but that circle is a graticule ring that gets drawn, so
-every name sat along a line; and near the pole it lays them flat, in the busiest
-part of the plate. Set the angle to `null` to get the curve back, which is what
-the Cavallini sheet does.
-
-Where a constellation has an English name and a Latin one, both are set, the
-Latin below in italic parentheses. If the second line will not fit, the name
-still goes down without it — the Latin is worth having but not worth losing the
-name over.
-
 ### Keeping what you arranged
 
 Nothing needs saving. Everything the editor can change lives in four places —
@@ -196,9 +181,11 @@ what a poster can show. What *is* specific to a date are the planets, Sun, and
 Moon, and which part of the sphere was above the horizon at a given place. Those
 are drawn on top of a plate that is otherwise unchanging.
 
-**There are no constellation figure lines**, because the original has none. It
-carries names in curved italic over a bare star field, and that restraint is a
-large part of the look.
+**There are no constellations at all** — no figure lines, which the original
+also lacks, and no names either. Names over a star field with nothing joining
+them up label a shape that is not drawn, so they were removed along with the
+catalogue they came from. The plate is stars, the graticule, and the reference
+circles.
 
 **Curved lettering places one glyph at a time** (`web/starchart/lettering.js`)
 rather than using SVG `<textPath>`. librsvg — which backs a lot of SVG tooling —
@@ -308,8 +295,8 @@ looking at the chart.
 
 Working: projection, star field by magnitude class, Milky Way, graticule, rim
 degree scale, curved hemisphere labels, tropics and polar circles, the ecliptic
-and colures, star and constellation names with collision avoidance, the
-date/place overlay, and the editor.
+and colures, star names with collision avoidance, the date/place overlay, and
+the editor.
 
 The Sun and Moon are plotted for the configured instant, each with the circle it
 traced that day. That day circle is the body's circle of constant declination:
