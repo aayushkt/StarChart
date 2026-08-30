@@ -103,6 +103,9 @@ export default {
     // Gap between a star and its name, in mm.
     star_gap: 2.85,
     constellation_tracking: 0.825,
+    // Curved along each constellation's own declination circle, as the
+    // lithograph this sheet is after actually sets them.
+    constellation_angle: null,
     // Faintest bucket whose labels are shown; see labels.js.
     mag_bucket: 11,
   },

@@ -119,6 +119,11 @@ export default {
   labels: {
     star_gap: 2.85,
     constellation_tracking: 0.825,
+    // Degrees clockwise from horizontal, applied to every constellation name
+    // on both plates. null sets them curved along their own declination
+    // circle instead, as the original does -- which is more faithful but lays
+    // each name directly along a graticule ring.
+    constellation_angle: -30.0,
     mag_bucket: 11,
   },
 

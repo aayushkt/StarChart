@@ -88,6 +88,21 @@ with them. Now any manual change freezes whatever is still following the
 computed arrangement. Overlap is allowed. **Reset layout** restores both kinds
 of layout change — dragged positions and the numbers behind them.
 
+### Names
+
+Constellation names are set at one angle across the whole plate —
+`labels.constellation_angle`, with a slider under **Colours → Names**. Curved
+along each name's own declination circle is the more faithful choice and it is
+what the original does, but that circle is a graticule ring that gets drawn, so
+every name sat along a line; and near the pole it lays them flat, in the busiest
+part of the plate. Set the angle to `null` to get the curve back, which is what
+the Cavallini sheet does.
+
+Where a constellation has an English name and a Latin one, both are set, the
+Latin below in italic parentheses. If the second line will not fit, the name
+still goes down without it — the Latin is worth having but not worth losing the
+name over.
+
 ### Keeping what you arranged
 
 Nothing needs saving. Everything the editor can change lives in four places —

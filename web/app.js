@@ -111,7 +111,16 @@ const set = (path, v) => {
   const last = keys.pop();
   keys.reduce((o, k) => o[k], rootFor(path))[last] = v;
 };
-const isGeometry = (path) => path.startsWith("config.");
+/* Theme values the renderer bakes into geometry rather than into CSS. Label
+ * placement is solved at render time -- where each name goes, and which ones
+ * are dropped for want of room -- so changing one of these has to re-run it.
+ * Rewriting the stylesheet would resize the type under labels that were laid
+ * out for the old size. */
+const PLACEMENT_PATHS = new Set([
+  "type.star_size", "type.constel_size", "type.constel_alt_scale",
+  "labels.constellation_angle", "labels.constellation_tracking", "labels.star_gap",
+]);
+const isGeometry = (path) => path.startsWith("config.") || PLACEMENT_PATHS.has(path);
 
 /* ---------- panel layout ----------
  *
@@ -292,7 +301,12 @@ const PANEL = [
         ["reference.ecliptic_stroke", "Ecliptic"],
         ["reference.colure_stroke", "Colures"],
       ] },
-      { title: "Names", colors: [
+      { title: "Names", sliders: [
+        { path: "type.star_size", label: "Star name size", min: 1.5, max: 12, step: 0.1, unit: "mm" },
+        { path: "type.constel_size", label: "Constellation size", min: 1.5, max: 14, step: 0.1, unit: "mm" },
+        { path: "labels.constellation_angle", label: "Constellation tilt",
+          min: -90, max: 90, step: 1, unit: "°" },
+      ], colors: [
         ["type.title_fill", "Title"],
         ["type.hemi_fill", "Hemisphere labels"],
         ["type.star_fill", "Star names"],
@@ -403,7 +417,9 @@ function sliderRow(spec) {
   input.addEventListener("input", () => {
     // Touching the layout would otherwise shift every diagram that is still
     // following the computed arrangement.
-    if (isGeometry(spec.path) && !spec.path.startsWith("config.placement")) freezeDerived();
+    if (spec.path.startsWith("config.") && !spec.path.startsWith("config.placement")) {
+      freezeDerived();
+    }
     set(spec.path, parseFloat(input.value));
     show();
     if (isGeometry(spec.path)) rerender(); else restyle();

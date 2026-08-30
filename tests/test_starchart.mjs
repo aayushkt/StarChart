@@ -25,6 +25,7 @@ import { textWidth } from "../web/starchart/lettering.js";
 import { PANELS } from "../web/starchart/panels.js";
 import { Hemisphere, NORTH, SOUTH } from "../web/starchart/projection.js";
 import { buildChart } from "../web/starchart/render.js";
+import { stylesheet } from "../web/starchart/style.js";
 
 const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
 const RADIUS = 166;
@@ -312,6 +313,64 @@ describe("document", () => {
       "the horizon went under the stars too");
   });
 
+  it("keeps the diagrams' styling inside the diagrams", () => {
+    /* The diagrams reuse .star and .constel-label for their own samples. Those
+     * rules were emitted unscoped and after the chart's own, so with equal
+     * weight they won on order: every star on both plates took the diagrams'
+     * sample colour, and every constellation name took the diagrams' ink -- a
+     * brown one shade off the plate it sits on. The Stars swatch appeared to do
+     * nothing at all. */
+    const css = stylesheet(defaultTheme);
+    const rule = (selector) => {
+      const hit = css.split("\n").filter((l) => l.startsWith(`${selector}{`));
+      return hit.length === 1 ? hit[0] : `${hit.length} rules`;
+    };
+    assert.ok(rule(".star").includes(defaultTheme.stars.fill),
+      "the plate's stars are painted by the diagrams");
+    assert.ok(rule(".constel-label").includes(defaultTheme.type.constel_fill),
+      "the constellation names are painted by the diagrams");
+    assert.ok(rule(".star-halo").includes(defaultTheme.stars.halo_fill),
+      "the halos are painted by the diagrams");
+    // Every selector in a group has to carry the scope, not just the first --
+    // prefixing the string would leave everything after the comma loose.
+    for (const line of css.split("\n")) {
+      if (!line.includes(".panel ") && !line.startsWith("#panel-")) continue;
+      const selectors = line.slice(0, line.indexOf("{")).split(",");
+      assert.ok(selectors.every((sel) => /^(\.panel |#panel-)/.test(sel.trim())),
+        `a diagram rule escaped its scope: ${line}`);
+    }
+  });
+
+  it("lets the hand rule beat the colours that share its scope", () => {
+    /* A hatched shape is an outline plus strokes, and `fill:none` is the only
+     * thing stopping it being a flat fill with lines drawn over it. That rule
+     * carries one class and wins on order -- so the moment the colour rules
+     * were scoped to `.panel` and went up to two classes, they outranked it and
+     * every diagram came back solid. Caught by eye, which is not a method. */
+    const css = stylesheet(defaultTheme).split("\n");
+    const spec = (sel) => [(sel.match(/#/g) ?? []).length,
+                           (sel.match(/\./g) ?? []).length];
+    const beats = (a, b) => a[0] !== b[0] ? a[0] > b[0] : a[1] >= b[1];
+
+    for (const [i, line] of css.entries()) {
+      const at = line.indexOf("{");
+      const decls = line.slice(at + 1, -1);
+      if (!/(^|;)fill:(?!none)/.test(decls)) continue;
+      const selectors = line.slice(0, at).split(",");
+      for (const sel of selectors) {
+        const prefix = sel.trim().startsWith("#panel-")
+          ? sel.trim().split(" ")[0] : sel.trim().startsWith(".panel ") ? ".panel" : null;
+        if (!prefix) continue;
+        const guard = css.findIndex((l, j) =>
+          j > i && l.startsWith(`${prefix} .hand{`) && l.includes("fill:none"));
+        assert.ok(guard !== -1,
+          `nothing stops "${sel.trim()}" filling a hatched shape`);
+        assert.ok(beats(spec(`${prefix} .hand`), spec(sel.trim())),
+          `"${sel.trim()}" outranks its own hand rule`);
+      }
+    }
+  });
+
   it("gives the diagrams no headings", () => {
     // Labelling inside a diagram earns its place -- which body is which, what
     // the scale bar measures. A heading over the top of it does not; the
@@ -327,6 +386,30 @@ describe("document", () => {
       assert.ok(panels.includes(`>${day}<`), `no ${day} on the seasons wheel`);
     }
     assert.ok(!panels.includes("EQUINOX"), "the long season names came back");
+  });
+
+  it("sets the constellation names at one angle across the plate", () => {
+    // Curved along each name's own declination circle is the faithful choice
+    // and what the original does, but that circle is a graticule ring that
+    // gets drawn, so every name sat on a line.
+    const angle = defaultTheme.labels.constellation_angle;
+    assert.equal(typeof angle, "number");
+    const { markup } = buildChart({
+      config: defaultConfig, theme: defaultTheme, data,
+      observer: makeObserver(defaultConfig),
+    });
+    const labels = [...markup.matchAll(
+      /<text[^>]*class="constel-label(?:-alt)?"[^>]*>/g)].map((m) => m[0]);
+    assert.ok(labels.length > 40, `only ${labels.length} constellation names placed`);
+    for (const label of labels) {
+      assert.match(label, new RegExp(`rotate\\(${angle} `),
+        `a name was not set at ${angle} degrees: ${label}`);
+    }
+    // Both lines of a two-line name have to survive: their tilted boxes always
+    // overlap as axis-aligned rectangles, and checking them against each other
+    // threw away every English-and-Latin pair.
+    const latin = labels.filter((l) => l.includes("constel-label-alt"));
+    assert.ok(latin.length > 20, `only ${latin.length} Latin lines placed`);
   });
 
   it("fills the column between the title and the caption", () => {

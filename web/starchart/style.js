@@ -15,6 +15,12 @@ import { fmt } from "./svg.js";
 
 const n = (v) => fmt(Number(v), 6);
 
+/** Put `prefix` in front of every selector in a group, not just the first.
+ *  `scope(".panel", "a,b")` is `.panel a,.panel b` -- prefixing the string
+ *  would have left `b` loose, which is the whole bug this exists to avoid. */
+const scope = (prefix, selectors) =>
+  selectors.split(",").map((sel) => `${prefix} ${sel.trim()}`).join(",");
+
 export const LAYERS = [
   ["layer-frame", "Border"],
   ["layer-title", "Title"],
@@ -68,7 +74,7 @@ function panelRules(pn, st, ty) {
       `stroke:${pn.umbra}`],
     [".star", `fill:${pn.star_sample}`],
     [".star-halo", `fill:${pn.star_sample};fill-opacity:${n(st.halo_opacity)}`],
-    [".constel-label,.panel .star-label", `fill:${pn.ink}`],
+    [".constel-label,.star-label", `fill:${pn.ink}`],
   ];
 }
 
@@ -138,9 +144,18 @@ export function stylesheet(theme, ui = {}) {
     `.body-label-moon{fill:${bd.day_circle_moon}}`,
   ];
 
-  // The same rules the per-diagram overrides use, unscoped. Emitting both from
-  // one function is the only way they stay in step.
-  for (const [suffix, decls] of panelRules(pn, st, ty)) rules.push(`${suffix}{${decls}}`);
+  /* The same rules the per-diagram overrides use, scoped to the diagrams.
+   * Emitting both from one function is the only way they stay in step.
+   *
+   * The scope is not cosmetic. These were emitted bare, and since they come
+   * after the chart's own rules and carry equal weight, `.star` and
+   * `.constel-label` here were repainting every star and every constellation
+   * name on the plates in the diagrams' colours -- which made the Stars swatch
+   * appear to do nothing at all, and set the constellation names in a brown a
+   * shade off the plate they sit on. */
+  for (const [suffix, decls] of panelRules(pn, st, ty)) {
+    rules.push(`${scope(".panel", suffix)}{${decls}}`);
+  }
 
   mw.opacities.forEach((o, i) =>
     rules.push(`.mw-${i + 1}{fill-opacity:${n(o * (ui.mwScale ?? 1))}}`));
@@ -153,6 +168,12 @@ export function stylesheet(theme, ui = {}) {
   // It has to sit after them all: `fill:none` is what stops a hatched shape
   // being a filled one with lines on top, and it wins on order, not weight.
   rules.push(".hand{fill:none;stroke-linecap:round;stroke-linejoin:round}");
+  /* And again at the diagrams' own weight. Scoping the panel rules to `.panel`
+   * lifted them to two classes, which put them above a bare `.hand` -- so every
+   * hatched shape in every diagram came back as a flat fill with lines drawn
+   * over it. This ties on weight and wins on order, which is how the bare rule
+   * won before the scope existed. */
+  rules.push(".panel .hand{fill:none}");
 
   // A diagram with its own styling gets the same rules again, scoped to their id,
   // which is enough to win on specificity.
@@ -160,7 +181,7 @@ export function stylesheet(theme, ui = {}) {
     if (!override || !Object.keys(override).length) continue;
     const own = { ...pn, ...override };
     for (const [suffix, decls] of panelRules(own, st, ty)) {
-      rules.push(`#panel-${name} ${suffix}{${decls}}`);
+      rules.push(`${scope(`#panel-${name}`, suffix)}{${decls}}`);
     }
     rules.push(`#panel-${name} .hand{fill:none}`);
   }

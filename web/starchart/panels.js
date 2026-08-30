@@ -231,11 +231,11 @@ function magnitudeKey(box, theme, ctx) {
   const radii = theme.stars.radii;
   const parts = [];
 
-  parts.push(caption(a.cx, a.y + 3.5, "THE MAGNITUDES OF STARS ARE SHOWN THUS", "panel-note"));
-
+  // The graded row and its class numbers, and nothing else. What the sizes mean
+  // is the one thing here a reader cannot work out from the drawing.
   const step = Math.min(a.w / (radii.length + 2), 13);
   const first = a.cx - (step * (radii.length - 1)) / 2;
-  const rowY = a.y + 12;
+  const rowY = a.cy - 2.5;
   radii.forEach((r, i) => {
     const x = first + i * step;
     if (i < theme.stars.halo_classes) {
@@ -244,17 +244,6 @@ function magnitudeKey(box, theme, ctx) {
     parts.push(circle(x, rowY, r, { class_: "star" }));
     parts.push(caption(x, rowY + 6.5, ["1ST", "2ND", "3RD", "4TH", "5TH"][i], "panel-tick"));
   });
-
-  // How the plate distinguishes the two kinds of name -- set in the faces the
-  // chart actually uses, so the key is a true sample rather than a description.
-  const col = a.w / 4;
-  const noteY = rowY + 17;
-  parts.push(caption(a.cx - col, noteY, "CONSTELLATIONS THUS", "panel-tick"));
-  parts.push(text(a.cx - col, noteY + 7, "CANCER",
-    { class_: "constel-label", text_anchor: "middle" }));
-  parts.push(caption(a.cx + col, noteY, "STARS THUS", "panel-tick"));
-  parts.push(text(a.cx + col, noteY + 7, "Altair",
-    { class_: "star-label", text_anchor: "middle" }));
 
   return frame(box, "", theme, parts.join(""));
 }
@@ -1110,7 +1099,9 @@ export const PANEL_SIZES = {
   // Ten millimetres shorter than they were, which is the band the heading used
   // to take. The drawing inside each keeps exactly the room it was drawn for.
   "planet-sizes": { w: 210, h: 52 },
-  "magnitude-key": { w: 130, h: 52 },
+  // Just the graded row now: the two lettering samples that used to sit under
+  // it explained a convention that does not need explaining.
+  "magnitude-key": { w: 92, h: 30 },
   "solar-system": { w: 130, h: 85 },
   "solar-eclipse": { w: 165, h: 48 },
   "lunar-eclipse": { w: 165, h: 48 },
