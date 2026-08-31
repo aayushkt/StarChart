@@ -70,13 +70,63 @@ export function dayTrack(observer, stepMinutes = 30) {
 }
 
 /** The Moon's path against the stars over one synodic month. */
-export function moonMonth(observer, days = 29.53, samples = 240) {
-  const start = observer.utc.getTime() - (days / 2) * 86400000;
+/** Where the Moon is against the stars, in degrees of RA and declination. */
+function moonAt(ms) {
+  const t = Astronomy.MakeTime(new Date(ms));
+  const eq = Astronomy.EquatorFromVector(Astronomy.GeoVector("Moon", t, true));
+  return [eq.ra * 15, eq.dec];
+}
+
+/** Angular distance between two RA/dec pairs, near enough at these separations. */
+function apart([ra1, dec1], [ra2, dec2]) {
+  const dra = ((ra1 - ra2 + 540) % 360) - 180;
+  return Math.hypot(dra * Math.cos((dec1 * Math.PI) / 180), dec1 - dec2);
+}
+
+/** The mean sidereal month, in days. */
+const SIDEREAL_MONTH = 27.321661;
+
+/**
+ * How long the Moon takes to come back to where it started, for this date.
+ *
+ * Not the synodic month. 29.53 days is the period of the *phases*, new moon to
+ * new moon, and this track is a position among the stars -- which repeats on
+ * the sidereal month instead. Drawing a synodic month ran 2.2 days too long, so
+ * the end of the track came back over its own beginning and lay there as a
+ * second strand nearly thirty degrees long.
+ *
+ * The sidereal month alone is not enough either: it is a mean, and the Moon's
+ * orbit is eccentric and perturbed, so the true return moves either side of it
+ * by a few tenths of a day -- still a degree or more of visible overlap. This
+ * searches for the moment the Moon is nearest to where it began, which closes
+ * the loop for the date actually being drawn.
+ */
+function siderealReturn(fromMs) {
+  const start = moonAt(fromMs);
+  const gap = (days) => apart(moonAt(fromMs + days * 86400000), start);
+  // Golden-section on a window wide enough to hold any real return.
+  let lo = SIDEREAL_MONTH - 0.9, hi = SIDEREAL_MONTH + 0.9;
+  const phi = (Math.sqrt(5) - 1) / 2;
+  let c = hi - phi * (hi - lo), d = lo + phi * (hi - lo);
+  let fc = gap(c), fd = gap(d);
+  for (let i = 0; i < 40 && hi - lo > 1e-4; i++) {
+    if (fc < fd) { hi = d; d = c; fd = fc; c = hi - phi * (hi - lo); fc = gap(c); }
+    else { lo = c; c = d; fc = fd; d = lo + phi * (hi - lo); fd = gap(d); }
+  }
+  return (lo + hi) / 2;
+}
+
+/** The Moon's path against the stars, one revolution centred on the instant. */
+export function moonMonth(observer, days = null, samples = 240) {
+  // The period depends on where the track starts and the start on the period,
+  // so it is estimated with the mean once and then solved from there. A second
+  // pass moves it by under a minute.
+  const span = days ?? siderealReturn(
+    observer.utc.getTime() - (SIDEREAL_MONTH / 2) * 86400000);
+  const start = observer.utc.getTime() - (span / 2) * 86400000;
   const out = [];
   for (let i = 0; i <= samples; i++) {
-    const t = Astronomy.MakeTime(new Date(start + (days * i * 86400000) / samples));
-    const eq = Astronomy.EquatorFromVector(Astronomy.GeoVector("Moon", t, true));
-    out.push([eq.ra * 15, eq.dec]);
+    out.push(moonAt(start + (span * i * 86400000) / samples));
   }
   return out;
 }

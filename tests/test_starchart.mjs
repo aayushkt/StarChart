@@ -18,7 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { states } from "../web/starchart/bodies.js";
+import { moonMonth, states } from "../web/starchart/bodies.js";
 import { horizonCurve, zenith } from "../web/starchart/horizon.js";
 import { defaultConfig, defaultTheme, makeObserver } from "../web/starchart/index.js";
 import { textWidth } from "../web/starchart/lettering.js";
@@ -362,6 +362,33 @@ describe("document", () => {
         assert.ok(beats(spec(`${prefix} .hand`), spec(sel.trim())),
           `"${sel.trim()}" outranks its own hand rule`);
       }
+    }
+  });
+
+  it("closes the Moon's monthly path", () => {
+    /* The track is a position among the stars, so it repeats on the sidereal
+     * month. It was drawn over a synodic month -- 29.53 days, the period of the
+     * phases -- which is 2.2 days too long, so the end ran back over the
+     * beginning and lay there as a second strand. */
+    const apart = ([ra1, dec1], [ra2, dec2]) => {
+      const dra = ((ra1 - ra2 + 540) % 360) - 180;
+      return Math.hypot(dra * Math.cos((dec1 * Math.PI) / 180), dec1 - dec2);
+    };
+    for (const datetime of ["2000-01-01T00:00:00", "2002-01-08T21:48:00",
+                            "2024-06-30T12:00:00"]) {
+      const cfg = { ...defaultConfig, time: { ...defaultConfig.time, datetime } };
+      const track = moonMonth(makeObserver(cfg));
+      const gap = apart(track[0], track[track.length - 1]);
+      /* Not zero, and it cannot be: the Moon's orbit precesses, so the track
+       * genuinely does not close on itself for any period. The residual runs
+       * about 0.1 degrees and reaches 0.23 across two years of start dates --
+       * 0.37 mm on the plate, narrower than the 0.5 mm line drawing it. */
+      assert.ok(gap < 0.35, `the track misses its own start by ${gap.toFixed(2)}° on ${datetime}`);
+      // And a synodic month really would show: assert the bad case is bad, so
+      // the tolerance above is known to be doing work.
+      const synodic = moonMonth(makeObserver(cfg), 29.53);
+      assert.ok(apart(synodic[0], synodic[synodic.length - 1]) > 5,
+        "a synodic month closed too, so this test proves nothing");
     }
   });
 

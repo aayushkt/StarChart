@@ -304,7 +304,12 @@ over a single day the Earth's rotation carries it round the pole at a fixed
 declination, so on this projection the path is exactly concentric with the
 plate's centre. Where it crosses the horizon curve is where the body rose and
 set. The Moon also carries its month-long path against the stars, which shows
-the roughly five-degree tilt of its orbit against the ecliptic.
+the roughly five-degree tilt of its orbit against the ecliptic. That path runs
+one *sidereal* month, not one synodic month: 29.53 days is the period of the
+phases, and a position among the stars repeats on the 27.32-day sidereal month
+instead. The period is solved for the date being drawn rather than taken as the
+mean, since the Moon's orbit is eccentric and perturbed enough that the mean
+leaves a degree of the track lying back over its own start.
 
 All seven diagrams from the original are drawn around the plates: comparative
 sizes of the Sun and planets, the magnitude key, the solar system to scale, both
