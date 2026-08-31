@@ -61,7 +61,7 @@ const AU_MILLION_MILES = 92.956;
  * fill, and flat fill is most of what reads as machine-made.
  */
 
-function pen(theme) {
+export function pen(theme) {
   const hand = theme.panels.hand ?? 0;
   const on = hand > 0.001;
   const stroke = (d, cls, w) =>
@@ -119,7 +119,7 @@ function pen(theme) {
 }
 
 /** An ellipse as points, so the pen can draw it like anything else. */
-function ellipsePoints(cx, cy, rx, ry, samples = 72) {
+export function ellipsePoints(cx, cy, rx, ry, samples = 72) {
   const out = [];
   for (let i = 0; i < samples; i++) {
     const t = (i / samples) * Math.PI * 2;
@@ -132,7 +132,7 @@ function ellipsePoints(cx, cy, rx, ry, samples = 72) {
 
 let clipSeq = 0;
 
-function frame(box, title, theme, body) {
+export function frame(box, title, theme, body) {
   const p = theme.panels;   // already resolved for this diagram by drawBand
   // Each panel is clipped to its own box. Several of these diagrams are only
   // legible because something runs off the edge -- the Sun's limb especially --
@@ -159,14 +159,14 @@ function frame(box, title, theme, body) {
 }
 
 /** The drawing area below a panel's heading. */
-const inner = (box, theme, titled = true) => {
+export const inner = (box, theme, titled = true) => {
   const p = theme.panels;
   const top = titled ? box.y + p.title_size + p.title_gap + p.title_space : box.y + 2;
   return { x: box.x, y: top, w: box.w, h: box.y + box.h - top,
            cx: box.x + box.w / 2, cy: (top + box.y + box.h) / 2 };
 };
 
-const caption = (x, y, s, cls = "panel-caption") =>
+export const caption = (x, y, s, cls = "panel-caption") =>
   text(x, y, s, { class_: cls });
 
 /* ------------------------------------------------- comparative sizes */
@@ -466,9 +466,25 @@ function moonIllumination(box, theme, ctx) {
  * because it is meant to read as something written, not something printed.
  */
 
-const eq = (x, y, content, size, cls = "panel-eq") =>
+/* Percentages are not safe on font-size.
+ *
+ * SVG 1.1 resolves a percentage font-size against the *viewport*; CSS and SVG 2
+ * resolve it against the parent's. librsvg does the second and browsers do the
+ * first, so `font-size="88%"` inside a 610x914 mm viewport came out around 680
+ * user units on screen: the fragment drawn enormous and the rest of the line
+ * shoved off the sheet. It rendered perfectly everywhere I was looking and was
+ * broken everywhere it mattered.
+ *
+ * So no percentage reaches the document. Every notation size is resolved here,
+ * against the size of the line it sits in, in the units the sheet is drawn in.
+ */
+const absolutise = (markup, size) =>
+  String(markup).replace(/font-size="([\d.]+)%"/g,
+    (_, pct) => `font-size="${fmt((size * Number(pct)) / 100)}"`);
+
+export const eq = (x, y, content, size, cls = "panel-eq") =>
   `<text x="${fmt(x)}" y="${fmt(y)}" class="${cls}" ` +
-  `font-size="${fmt(size)}" text-anchor="middle">${content}</text>`;
+  `font-size="${fmt(size)}" text-anchor="middle">${absolutise(content, size)}</text>`;
 
 /* A block of working, set as a page rather than a table.
  *
@@ -482,7 +498,7 @@ const eq = (x, y, content, size, cls = "panel-eq") =>
  * size, `rule` to underline it the way a result gets underlined. An empty
  * string is a half-line of air.
  */
-function scrawl(x, y, lines, size, theme, { lead = 1.6, wander = 1 } = {}) {
+export function scrawl(x, y, lines, size, theme, { lead = 1.6, wander = 1 } = {}) {
   const r = sketch.rng(sketch.seedFrom([x, y, lines.length]));
   const P = pen(theme);
   const out = [];
@@ -497,7 +513,8 @@ function scrawl(x, y, lines, size, theme, { lead = 1.6, wander = 1 } = {}) {
     const tilt = (r() - 0.5) * wander * 1.5;
     out.push(
       `<text x="${fmt(lx)}" y="${fmt(ly)}" class="panel-eq" font-size="${fmt(s)}" ` +
-      `transform="rotate(${fmt(tilt)} ${fmt(lx)} ${fmt(ly)})">${l.text}</text>`);
+      `transform="rotate(${fmt(tilt)} ${fmt(lx)} ${fmt(ly)})">` +
+      `${absolutise(l.text, s)}</text>`);
     if (l.rule) {
       // Measured off the text with its markup stripped -- close enough for a
       // line drawn under it by hand, which is not meant to be flush anyway.

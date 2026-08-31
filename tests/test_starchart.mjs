@@ -420,6 +420,26 @@ describe("document", () => {
     assert.ok(at("SOLSTITIAL COLURE")[0] > px, "the solstitial label is not right of the pole");
   });
 
+  it("puts no percentage font sizes in the document", () => {
+    /* SVG 1.1 resolves a percentage font-size against the viewport and CSS
+     * against the parent. librsvg does the second, browsers the first -- so
+     * `font-size="88%"` on a tspan came out around 680 user units in a browser,
+     * drawing the fragment enormous and shoving the rest of its line off the
+     * sheet. It looked perfect in every render here and was broken on screen,
+     * which is exactly why this is checked on the output rather than by eye. */
+    const { markup } = buildChart({
+      config: defaultConfig, theme: defaultTheme, data,
+      observer: makeObserver(defaultConfig),
+    });
+    const found = markup.match(/font-size="[^"]*%"/g) ?? [];
+    assert.deepEqual(found, [], `percentage font sizes reached the document`);
+    // The notation is still stepped -- a subscript is smaller than its line --
+    // so this is not passing by having flattened everything to one size.
+    const sizes = new Set([...markup.matchAll(/<tspan font-size="([\d.]+)"/g)]
+      .map((m) => m[1]));
+    assert.ok(sizes.size > 3, "the notation lost its size steps");
+  });
+
   it("gives the diagrams no headings", () => {
     // Labelling inside a diagram earns its place -- which body is which, what
     // the scale bar measures. A heading over the top of it does not; the
